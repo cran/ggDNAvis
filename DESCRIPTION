@@ -1,0 +1,32 @@
+Package: ggDNAvis
+Title: 'ggplot2'-Based Tools for Visualising DNA Sequences and
+        Modifications
+Version: 0.2.1
+Authors@R: 
+    person(
+        "Evelyn", "Jade", 
+        email = "evelynjade42@gmail.com", 
+        role = c("aut", "cre", "cph"),
+        comment = c(ORCID = "0009-0003-7761-5425")
+    )
+Description: Uses 'ggplot2' to visualise either (a) a single DNA/RNA sequence split across multiple lines, (b) multiple DNA/RNA sequences, each occupying a whole line, or (c) base modifications such as DNA methylation called by modified bases models in Dorado or Guppy. Functions starting with visualise_<something>() are the main plotting functions, and functions starting with extract_<something>() are key helper functions for reading files and reformatting data. Source code is available at <https://github.com/ejade42/ggDNAvis> and a full non-expert user guide is available at <https://ejade42.github.io/ggDNAvis/>.
+Imports: ggplot2, dplyr, tidyr, stringr, raster, rlang, ragg, png,
+        magick
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.3.3
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Depends: R (>= 3.5)
+LazyData: true
+Language: en-GB
+URL: https://ejade42.github.io/ggDNAvis/,
+        https://github.com/ejade42/ggDNAvis
+BugReports: https://github.com/ejade42/ggDNAvis/issues
+NeedsCompilation: no
+Packaged: 2025-09-15 02:38:11 UTC; evelyn
+Author: Evelyn Jade [aut, cre, cph] (ORCID:
+    <https://orcid.org/0009-0003-7761-5425>)
+Maintainer: Evelyn Jade <evelynjade42@gmail.com>
+Repository: CRAN
+Date/Publication: 2025-09-21 13:30:07 UTC
