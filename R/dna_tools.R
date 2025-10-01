@@ -175,13 +175,13 @@ reverse_complement <- function(sequence, output_mode = "DNA") {
 
 
 ## These next two functions work together to encode
-## sequence numerically for visualisation via `raster::raster()`.
+## sequence numerically for visualisation.
 ## A = 1, C = 2, G = 3, T/U = 4, blank = 0
 
 #' Map a single base to the corresponding number (generic `ggDNAvis` helper)
 #'
 #' This function takes a single base and numerically
-#' encodes it for visualisation via [raster::raster()]. \cr\cr
+#' encodes it for visualisation via [rasterise_matrix()]. \cr\cr
 #' Encoding: `A = 1`, `C = 2`, `G = 3`, `T/U = 4`.
 #'
 #' @param base `character`. A single DNA/RNA base to encode numerically (e.g. `"A"`).
@@ -218,7 +218,7 @@ convert_base_to_number <- function(base) {
 #' Map a sequence to a vector of numbers (generic `ggDNAvis` helper)
 #'
 #' This function takes a sequence and encodes it as a vector
-#' of numbers for visualisation via [raster::raster()]. \cr\cr
+#' of numbers for visualisation via [rasterise_matrix()]. \cr\cr
 #' Encoding: `A = 1`, `C = 2`, `G = 3`, `T/U = 4`.
 #'
 #' @param sequence `character`. A DNA/RNA sequence (`A/C/G/T/U`) to be encoded numerically. No other characters allowed. Only one sequence allowed.
@@ -289,6 +289,81 @@ create_image_data <- function(sequences) {
         image_matrix[i, ] <- numeric_sequence_representation
     }
 
-    image_data <- raster::as.data.frame(raster::raster(image_matrix), xy = TRUE)
+    image_data <- rasterise_matrix(image_matrix)
     return(image_data)
+}
+
+
+#' Rasterise a matrix to an x/y/layer dataframe (generic `ggDNAvis` helper)
+#'
+#' This function takes a matrix and rasterises it to a dataframe of x and y
+#' coordinates, such that the matrix occupies the space from (0, 0) to (1, 1) and each
+#' element of the matrix represents a rectangle with width 1/ncol(matrix) and height
+#' 1/nrow(matrix). The "layer" column of the dataframe is simply the value of each element
+#' of the matrix.
+#'
+#' @param image_matrix `matrix`. A matrix (or anything that can be coerced to a matrix via [base::as.matrix()]).
+#' @return `dataframe`. A dataframe containing x and y coordinates for the centre of a rectangle per element of the matrix, such that the whole matrix occupies the space from (0, 0) to (1, 1). Additionally contains a layer column storing the value of each element of the matrix.
+#'
+#' @examples
+#' ## Create numerical matrix
+#' example_matrix <- matrix(1:16, ncol = 4, nrow = 4, byrow = TRUE)
+#'
+#' ## View
+#' example_matrix
+#'
+#' ## Rasterise
+#' rasterise_matrix(example_matrix)
+#'
+#'
+#'
+#' ## Create character matrix
+#' example_matrix <- matrix(
+#'     c("A", "B", "C", "D", "E",
+#'       "F", "G", "H", "I", "J"),
+#'     nrow = 2, ncol = 5, byrow = TRUE
+#' )
+#'
+#' ## View
+#' example_matrix
+#'
+#' ## Rasterise
+#' rasterise_matrix(example_matrix)
+#'
+#'
+#'
+#' ## Create realistic DNA matrix
+#' dna_matrix <- matrix(
+#'     c(0, 0, 0, 0, 0, 0, 0, 0,
+#'       3, 3, 2, 3, 3, 2, 4, 4,
+#'       0, 0, 0, 0, 0, 0, 0, 0,
+#'       4, 1, 4, 1, 0, 0, 0, 0),
+#'     nrow = 4, ncol = 8, byrow = TRUE
+#' )
+#'
+#' ## View
+#' dna_matrix
+#'
+#' ## Rasterise
+#' rasterise_matrix(dna_matrix)
+#'
+#' @export
+rasterise_matrix <- function(image_matrix) {
+    image_matrix <- as.matrix(image_matrix)
+
+    n <- nrow(image_matrix)
+    k <- ncol(image_matrix)
+
+    blank <- rep(0, length(image_matrix))
+    output_dataframe <- data.frame(x = blank, y = blank, layer = blank)
+    count <- 1L
+    for (i in 1:n) {
+        for (j in 1:k) {
+            output_dataframe[count, "x"] <- (j-0.5)/k
+            output_dataframe[count, "y"] <- 1 - (i-0.5)/n
+            output_dataframe[count, "layer"] <- image_matrix[i,j]
+            count <- count + 1L
+        }
+    }
+    return(output_dataframe)
 }
