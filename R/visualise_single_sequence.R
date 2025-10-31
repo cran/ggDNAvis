@@ -177,6 +177,7 @@ visualise_single_sequence <- function(sequence, sequence_colours = sequence_colo
         ## General plot setup
         guides(x = "none", y = "none", fill = "none", col = "none", size = "none") +
         coord_cartesian(expand = FALSE, clip = "off") +
+        theme_void() +
         theme(axis.title = element_blank(),
               plot.background = element_rect(fill = background_colour, colour = NA))
 
