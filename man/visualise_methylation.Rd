@@ -2,18 +2,34 @@
 % Please edit documentation in R/visualise_methylation.R
 \name{visualise_methylation}
 \alias{visualise_methylation}
+\alias{visualize_methylation}
 \title{Visualise methylation probabilities for many DNA sequences}
 \usage{
 visualise_methylation(
   modification_locations,
   modification_probabilities,
-  sequence_lengths,
+  sequences,
+  ...,
   low_colour = "blue",
   high_colour = "red",
   low_clamp = 0,
   high_clamp = 255,
   background_colour = "white",
   other_bases_colour = "grey",
+  sequence_text_type = "none",
+  sequence_text_scaling = c(-0.5, 256),
+  sequence_text_rounding = 2,
+  sequence_text_colour = "black",
+  sequence_text_size = 16,
+  index_annotation_lines = c(1),
+  index_annotation_colour = "darkred",
+  index_annotation_size = 12.5,
+  index_annotation_interval = 15,
+  index_annotations_above = TRUE,
+  index_annotation_vertical_position = 1/3,
+  index_annotation_full_line = TRUE,
+  index_annotation_always_first_base = TRUE,
+  index_annotation_always_last_base = TRUE,
   outline_colour = "black",
   outline_linewidth = 3,
   outline_join = "mitre",
@@ -26,8 +42,10 @@ visualise_methylation(
   margin = 0.5,
   return = TRUE,
   filename = NA,
+  force_raster = FALSE,
   render_device = ragg::agg_png,
-  pixels_per_base = 20
+  pixels_per_base = 100,
+  monitor_performance = FALSE
 )
 }
 \arguments{
@@ -35,7 +53,9 @@ visualise_methylation(
 
 \item{modification_probabilities}{\verb{character vector}. One character value for each sequence, storing a condensed string (e.g. \code{"0,128,255,15"}, produced via \code{\link[=vector_to_string]{vector_to_string()}}) of the probability of methylation/modification at each assessed base.\cr\cr Assumed to be Nanopore > SAM style modification stored as an 8-bit integer from 0 to 255, but changing other arguments could make this work on other scales.}
 
-\item{sequence_lengths}{\verb{numeric vector}. The length of each sequence.}
+\item{sequences}{\verb{character vector}. One character value for each sequence, storing the actual DNA sequence.}
+
+\item{...}{Used to recognise aliases e.g. American spellings or common misspellings - see \link{aliases}. If any American spellings do not work, please make a bug report at \url{https://github.com/ejade42/ggDNAvis/issues}.}
 
 \item{low_colour}{\code{character}. The colour that should be used to represent minimum probability of methylation/modification (defaults to blue).}
 
@@ -48,6 +68,34 @@ visualise_methylation(
 \item{background_colour}{\code{character}. The colour the background should be drawn (defaults to white).}
 
 \item{other_bases_colour}{\code{character}. The colour non-assessed (e.g. non-CpG) bases should be drawn (defaults to grey).}
+
+\item{sequence_text_type}{\code{character}. What type of text should be drawn in the boxes. One of \code{"sequence"} (to draw the base sequence in the boxes, similar to \code{\link[=visualise_many_sequences]{visualise_many_sequences()}}), \code{"probability"} (to draw the numerical probability of methylation in each assessed box, optionally scaled via \code{sequence_text_scaling}), or \code{"none"} (default, to draw the boxes only with no text).}
+
+\item{sequence_text_scaling}{\verb{numeric vector, length 2}. The min and max possible probability values, used to facilitate scaling of the text in each to 0-1. Scaling is implemented as \eqn{\frac{p - min}{max}}, so custom scalings (e.g. scaled to 0-9 space) can be implemented by setting this values as required.\cr\cr Set to \code{c(0, 1)} to not scale at all i.e. print the raw integer probability values. It is recommended to also set \code{sequence_text_rounding = 0} to print integers as the default value of \code{2} will result in e.g. \code{"128.00"}. \cr\cr Set to \code{c(-0.5, 256)} (default, results in \eqn{\frac{p+0.5}{256}}) to scale to the centre of the probability spaces defined by the SAMtools spec, where integer \eqn{p} represents the probability space from \eqn{\frac{p}{256}} to \eqn{\frac{p+1}{256}}. This is slightly better at representing the uncertainty compared to \code{c(0, 255)} as strictly speaking \code{0} represents the probability space from 0.000 to 0.004 and \code{255} represents the probability space from 0.996 to 1.000, so scaling them to 0.002 and 0.998 respectively is a more accurate representation of the probability space they each represent. Setting \code{c(0, 255)} would scale such that 0 is exactly 0.000 and 255 is exactly 1.000, which is not as accurate so it discouraged.}
+
+\item{sequence_text_rounding}{\code{integer}. How many decimal places the text drawn in the boxes should be rounded to (defaults to \code{2}). Ignored if \code{sequence_text_type} is \code{"sequence"} or \code{"none"}.}
+
+\item{sequence_text_colour}{\code{character}. The colour of the text within the bases (e.g. colour of "A" letter within boxes representing adenosine bases). Defaults to black.}
+
+\item{sequence_text_size}{\code{numeric}. The size of the text within the bases (e.g. size of "A" letter within boxes representing adenosine bases). Defaults to \code{16}. Set to \code{0} to hide sequence text (show box colours only).}
+
+\item{index_annotation_lines}{\verb{integer vector}. The lines (i.e. elements of \code{sequences_vector}) that should have their base incides annotated. 1-indexed e.g. \code{c(1, 10)} would annotate the first and tenth elements of \code{sequences_vector}.\cr\cr Extra lines are inserted above or below (depending on \code{index_annotations_above}) the selected lines - note that the line numbers come from \code{sequences_vector}, so are unaffected by these insertions.\cr\cr Setting to \code{NA} disables index annotations (and prevents adding additional blank lines). Defaults to \code{c(1)} i.e. first sequence is annotated.\cr\cr Note: \code{\link[=visualise_methylation]{visualise_methylation()}} and \code{\link[=visualise_many_sequences]{visualise_many_sequences()}} accept \code{NA}, \code{NULL}, \code{numeric(0)}, \code{0}, and \code{FALSE} as meaning "annotations off".}
+
+\item{index_annotation_colour}{\code{character}. The colour of the little numbers underneath indicating base index (e.g. colour of "15" label under the 15th base). Defaults to dark red.}
+
+\item{index_annotation_size}{\code{numeric}. The size of the little number underneath indicating base index (e.g. size of "15" label under the 15th base). Defaults to \code{12.5}.\cr\cr Setting to \code{0} disables index annotations (and prevents adding additional blank lines).}
+
+\item{index_annotation_interval}{\code{integer}. The frequency at which numbers should be placed underneath indicating base index, starting counting from the leftmost base. Defaults to \code{15} (every 15 bases along each row).\cr\cr Setting to \code{0} disables index annotations (and prevents adding additional blank lines).}
+
+\item{index_annotations_above}{\code{logical}. Whether index annotations should go above (\code{TRUE}, default) or below (\code{FALSE}) each line of sequence.}
+
+\item{index_annotation_vertical_position}{\code{numeric}. How far annotation numbers should be rendered above (if \code{index_annotations_above = TRUE}) or below (if \code{index_annotations_above = FALSE}) each base. Defaults to \code{1/3}.\cr\cr Not recommended to change at all. Strongly discouraged to set below 0 or above 1.}
+
+\item{index_annotation_full_line}{\code{logical}. Whether index annotations should continue to the end of the longest sequence (\code{TRUE}, default) or should only continue as far as each selected line does (\code{FALSE}).}
+
+\item{index_annotation_always_first_base}{\code{logical}. Whether to force the first base in each line to always be annotated regardless of whether it occurs at the \code{index_annotation_interval}. Defaults to \code{TRUE}.}
+
+\item{index_annotation_always_last_base}{\code{logical}. Whether to force the last base in each line to always be annotated regardless of whether it occurs at the \code{index_annotation_interval}. Defaults to \code{TRUE}.}
 
 \item{outline_colour}{\code{character}. The colour of the box outlines. Defaults to black.}
 
@@ -67,56 +115,66 @@ visualise_methylation(
 
 \item{other_bases_outline_join}{\code{character}. If \code{NA} (default), inherits from \code{outline_join}. If not \code{NA}, overrides \code{outline_join} for non-modification-assessed bases only.}
 
-\item{margin}{\code{numeric}. The size of the margin relative to the size of each base square. Defaults to \code{0.5} (half the side length of each base square).}
+\item{margin}{\code{numeric}. The size of the margin relative to the size of each base square. Defaults to \code{0.5} (half the side length of each base square).\cr\cr Note that index annotations can require a minimum margin size at the top or bottom if present above the first/below the last row. This is handled automatically but can mean the top/bottom margin is sometimes larger than the \code{margin} setting.\cr\cr Very small margins (\eqn{\le}0.25) may cause thick outlines to be cut off at the edges of the plot. Recommended to either use a wider margin or a smaller \code{outline_linewidth}.}
 
 \item{return}{\code{logical}. Boolean specifying whether this function should return the ggplot object, otherwise it will return \code{invisible(NULL)}. Defaults to \code{TRUE}.}
 
 \item{filename}{\code{character}. Filename to which output should be saved. If set to \code{NA} (default), no file will be saved. Recommended to end with \code{".png"}, but can change if render device is changed.}
 
+\item{force_raster}{\code{logical}. Boolean specifying whether \code{\link[ggplot2:geom_tile]{ggplot2::geom_raster()}} should be used even if it will remove text and outlines. Defaults to \code{FALSE}.\cr\cr To make the detailed plots with box outlines, sequence text, and index annotations, \code{\link[ggplot2:geom_tile]{ggplot2::geom_tile()}} is used. However, \code{geom_tile} is slower for huge datasets, so there is an option to use \code{geom_raster} instead. \code{geom_raster} does not support box outlines, sequence text, or index annotations, but is much faster if only the colours are wanted.\cr\cr \code{geom_raster} is automatically used if it will not change the plot (i.e. if all extraneous elements are already off), but can be forced using this argument.}
+
 \item{render_device}{\verb{function/character}. Device to use when rendering. See \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}} documentation for options. Defaults to \code{\link[ragg:agg_png]{ragg::agg_png}}. Can be set to \code{NULL} to infer from file extension, but results may vary between systems.}
 
-\item{pixels_per_base}{\code{integer}. How large each box should be in pixels, if file output is turned on via setting \code{filename}. Corresponds to dpi of the exported image. Defaults to \code{20}. Low values acceptable as currently this function does not write any text.}
+\item{pixels_per_base}{\code{integer}. How large each box should be in pixels, if file output is turned on via setting \code{filename}. Corresponds to dpi of the exported image. Defaults to \code{100}.\cr\cr Large values (e.g. 100) are required to render small text properly. Small values (e.g. 20) will work when sequence/annotation text is off, and very small values (e.g. 10) will work when sequence/annotation text and outlines are all off.}
+
+\item{monitor_performance}{\code{logical}. Boolean specifying whether verbose performance monitoring should be messaged to console. Defaults to \code{FALSE}.}
 }
 \value{
 A ggplot object containing the full visualisation, or \code{invisible(NULL)} if \code{return = FALSE}. It is often more useful to use \code{filename = "myfilename.png"}, because then the visualisation is exported at the correct aspect ratio.
 }
 \description{
+\code{visualize_methylation()} is an alias for \code{visualise_methylation()} - see \link{aliases}.
+
 This function takes vectors of modifications locations, modification probabilities,
-and sequence lengths (e.g. created by \code{\link[=extract_methylation_from_dataframe]{extract_methylation_from_dataframe()}}) and
-visualises the probability of methylation (or other modification) across each read.\cr\cr
-Assumes that the three main input vectors are of equal length \emph{n} and represent \emph{n} sequences
+and sequence lengths (e.g. created by \code{\link[=extract_and_sort_methylation]{extract_and_sort_methylation()}}) and
+visualises the probability of methylation (or other modification) across each read.
+
+Assumes that the three main input vectors are of equal length \eqn{n} and represent \eqn{n} sequences
 (e.g. Nanopore reads), where \code{locations} are the indices along each read at which modification
 was assessed, \code{probabilities} are the probability of modification at each assessed site, and
-\code{lengths} are the lengths of each sequence.\cr\cr
+\code{lengths} are the lengths of each sequence.
+
 For each sequence, renders non-assessed (e.g. non-CpG) bases as \code{other_bases_colour}, renders
 background (including after the end of the sequence) as \code{background_colour}, and renders assessed
-bases on a linear scale from \code{low_colour} to \code{high_colour}.\cr\cr
+bases on a linear scale from \code{low_colour} to \code{high_colour}.
+
 Clamping means that the endpoints of the colour gradient can be set some distance into the probability
 space e.g. with Nanopore > SAM probability values from 0-255, the default is to render 0 as fully blue
 (\verb{#0000FF}), 255 as fully red (\verb{#FF0000}), and values in between linearly interpolated. However, clamping with
 \code{low_clamp = 100} and \code{high_clamp = 200} would set \emph{all probabilities up to 100} as fully blue,
-\emph{all probabilities 200 and above} as fully red, and linearly interpolate only over the \code{100-200} range.\cr\cr
+\emph{all probabilities 200 and above} as fully red, and linearly interpolate only over the \code{100-200} range.
+
 A separate scalebar plot showing the colours corresponding to each probability, with any/no clamping values,
 can be produced via \code{\link[=visualise_methylation_colour_scale]{visualise_methylation_colour_scale()}}.
 }
 \examples{
 \donttest{
 ## Extract info from dataframe
-methylation_info <- extract_methylation_from_dataframe(example_many_sequences)
+methylation_info <- extract_and_sort_methylation(example_many_sequences)
 
 ## Visualise example_many_sequences with all defaults
 ## This looks ugly because it isn't at the right scale/aspect ratio
 visualise_methylation(
     methylation_info$locations,
     methylation_info$probabilities,
-    methylation_info$lengths
+    methylation_info$sequences
 )
 
 ## Export with all defaults rather than returning
 visualise_methylation(
     methylation_info$locations,
     methylation_info$probabilities,
-    methylation_info$lengths,
+    methylation_info$sequences,
     filename = "example_vm_01.png",
     return = FALSE
 )
@@ -130,13 +188,18 @@ grid::grid.raster(image)
 visualise_methylation(
     methylation_info$locations,
     methylation_info$probabilities,
-    methylation_info$lengths,
+    methylation_info$sequences,
     filename = "example_vm_02.png",
     return = FALSE,
     low_colour = "white",
     high_colour = "black",
     low_clamp = 0.3*255,
     high_clamp = 0.7*255,
+    index_annotation_lines = c(1, 23, 37),
+    index_annotation_interval = 3,
+    index_annotation_full_line = FALSE,
+    index_annotation_always_first_base = TRUE,
+    index_annotation_always_last_base = TRUE,
     other_bases_colour = "lightblue1",
     other_bases_outline_linewidth = 1,
     other_bases_outline_colour = "grey",
@@ -147,6 +210,105 @@ visualise_methylation(
 ## View exported image
 image <- png::readPNG("example_vm_02.png")
 unlink("example_vm_02.png")
+grid::grid.newpage()
+grid::grid.raster(image)
+
+
+## Export with customisation, viewing sequences
+visualise_methylation(
+    methylation_info$locations,
+    methylation_info$probabilities,
+    methylation_info$sequences,
+    filename = "example_vm_03.png",
+    return = FALSE,
+    low_colour = "white",
+    high_colour = "black",
+    low_clamp = 0.3*255,
+    high_clamp = 0.7*255,
+    sequence_text_type = "sequence",
+    sequence_text_colour = "red",
+    index_annotation_lines = c(1, 23, 37),
+    index_annotation_interval = 3,
+    index_annotation_full_line = FALSE,
+    index_annotation_always_first_base = TRUE,
+    index_annotation_always_last_base = TRUE,
+    other_bases_colour = "lightblue1",
+    other_bases_outline_linewidth = 1,
+    other_bases_outline_colour = "grey",
+    modified_bases_outline_linewidth = 3,
+    modified_bases_outline_colour = "black",
+    margin = 0.3
+)
+## View exported image
+image <- png::readPNG("example_vm_03.png")
+unlink("example_vm_03.png")
+grid::grid.newpage()
+grid::grid.raster(image)
+
+
+## Export with customisation, viewing probabilities
+visualise_methylation(
+    methylation_info$locations,
+    methylation_info$probabilities,
+    methylation_info$sequences,
+    filename = "example_vm_04.png",
+    return = FALSE,
+    low_colour = "cyan",
+    high_colour = "yellow",
+    low_clamp = 0.3*255,
+    high_clamp = 0.7*255,
+    sequence_text_type = "probability",
+    sequence_text_size = 10,
+    sequence_text_colour = "black",
+    index_annotation_lines = c(1, 23, 37),
+    index_annotation_interval = 3,
+    index_annotation_full_line = FALSE,
+    index_annotation_always_first_base = TRUE,
+    index_annotation_always_last_base = TRUE,
+    other_bases_colour = "lightgreen",
+    other_bases_outline_linewidth = 1,
+    other_bases_outline_colour = "grey",
+    modified_bases_outline_linewidth = 3,
+    modified_bases_outline_colour = "black",
+    margin = 0.3
+)
+## View exported image
+image <- png::readPNG("example_vm_04.png")
+unlink("example_vm_04.png")
+grid::grid.newpage()
+grid::grid.raster(image)
+
+
+## Export with customisation, viewing probability integers
+visualise_methylation(
+    methylation_info$locations,
+    methylation_info$probabilities,
+    methylation_info$sequences,
+    filename = "example_vm_05.png",
+    return = FALSE,
+    low_colour = "blue",
+    high_colour = "red",
+    low_clamp = 0.3*255,
+    high_clamp = 0.7*255,
+    sequence_text_type = "probability",
+    sequence_text_scaling = c(0, 1),
+    sequence_text_rounding = 0,
+    sequence_text_size = 10,
+    sequence_text_colour = "white",
+    index_annotation_lines = c(1, 23, 37),
+    index_annotation_interval = 3,
+    index_annotation_full_line = FALSE,
+    index_annotation_always_first_base = TRUE,
+    index_annotation_always_last_base = TRUE,
+    other_bases_outline_linewidth = 1,
+    other_bases_outline_colour = "grey",
+    modified_bases_outline_linewidth = 3,
+    modified_bases_outline_colour = "black",
+    margin = 0.3
+)
+## View exported image
+image <- png::readPNG("example_vm_05.png")
+unlink("example_vm_05.png")
 grid::grid.newpage()
 grid::grid.raster(image)
 }

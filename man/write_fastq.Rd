@@ -7,6 +7,7 @@
 write_fastq(
   dataframe,
   filename = NA,
+  ...,
   read_id_colname = "read",
   sequence_colname = "sequence",
   quality_colname = "quality",
@@ -14,9 +15,11 @@ write_fastq(
 )
 }
 \arguments{
-\item{dataframe}{\code{dataframe}. Dataframe containing modification information to write back to modified FASTQ. Must have columns for unique read ID and DNA sequence. Should also have a column for quality, unless wanting to fill in qualities with \code{"B"}.}
+\item{dataframe}{Dataframe containing sequence information to write back to FASTQ. Must have columns for unique read ID and DNA sequence. Should also have a column for quality, unless wanting to fill in qualities with \code{"B"}.}
 
 \item{filename}{\code{character}. File to write the FASTQ to. Recommended to end with \code{.fastq} (warns but works if not). If set to \code{NA} (default), no file will be output, which may be useful for testing/debugging.}
+
+\item{...}{Used to recognise aliases e.g. American spellings or common misspellings - see \link{aliases}. If any American spellings do not work, please make a bug report at \url{https://github.com/ejade42/ggDNAvis/issues}.}
 
 \item{read_id_colname}{\code{character}. The name of the column within the dataframe that contains the unique ID for each read. Defaults to \code{"read"}.}
 

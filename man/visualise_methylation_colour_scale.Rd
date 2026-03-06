@@ -2,6 +2,7 @@
 % Please edit documentation in R/visualise_methylation.R
 \name{visualise_methylation_colour_scale}
 \alias{visualise_methylation_colour_scale}
+\alias{visualize_methylation_color_scale}
 \title{Visualise methylation colour scalebar}
 \usage{
 visualise_methylation_colour_scale(
@@ -9,15 +10,16 @@ visualise_methylation_colour_scale(
   high_colour = "red",
   low_clamp = 0,
   high_clamp = 255,
+  ...,
   full_range = c(0, 255),
   precision = 10^3,
   background_colour = "white",
-  x_axis_title = NULL,
-  do_x_ticks = TRUE,
-  do_side_scale = FALSE,
-  side_scale_title = NULL,
+  axis_location = "bottom",
+  axis_title = NULL,
+  do_axis_ticks = TRUE,
   outline_colour = "black",
-  outline_linewidth = 1
+  outline_linewidth = 1,
+  monitor_performance = FALSE
 )
 }
 \arguments{
@@ -25,9 +27,11 @@ visualise_methylation_colour_scale(
 
 \item{high_colour}{\code{character}. The colour that should be used to represent maximum probability of methylation/modification (defaults to red).}
 
-\item{low_clamp}{\code{numeric}. The minimum probability below which all values are coloured \code{low_colour}. Defaults to \code{0} (i.e. no clamping).}
+\item{low_clamp}{\code{numeric}. The minimum probability below which all values are coloured \code{low_colour}. Defaults to \code{0} (i.e. no clamping). To specify a proportion probability in 8-bit form, multiply by 255 e.g. to low-clamp at 30\% probability, set this to \code{0.3*255}.}
 
 \item{high_clamp}{\code{numeric}. The maximum probability above which all values are coloured \code{high_colour}. Defaults to \code{255} (i.e. no clamping, assuming Nanopore > SAM style modification calling where probabilities are 8-bit integers from 0 to 255).}
+
+\item{...}{Used to recognise aliases e.g. American spellings or common misspellings - see \link{aliases}. If any American spellings do not work, please make a bug report at \url{https://github.com/ejade42/ggDNAvis/issues}.}
 
 \item{full_range}{\verb{numeric vector}, length 2. The total range of possible probabilities. Defaults to \code{c(0, 255)}, which is appropriate for Nanopore > SAM style modification calling where probabilities are 8-bit integers from 0 to 255.\cr\cr May need to be set to \code{c(0, 1)} if probabilites are instead stored as decimals. Setting any other value is advanced use and should be done for a good reason.}
 
@@ -35,22 +39,24 @@ visualise_methylation_colour_scale(
 
 \item{background_colour}{\code{character}. The colour the background should be drawn (defaults to white).}
 
-\item{x_axis_title}{\code{character}. The desired x-axis title. Defaults to \code{NULL}.}
+\item{axis_location}{\code{character}. Which edge should be labelled. The gradient will always be along this axis (i.e. horizontal gradient for \code{"top"} or \code{"bottom"}, vertical gradient for \code{"left"} or \code{"right"}). Accepts \code{"top"} / \code{"north"}, \code{"bottom"} / \code{"south"}, \code{"left"} / \code{"west"}, and \code{"right"} / \code{"east"} (not case sensitive).}
 
-\item{do_x_ticks}{\code{logical}. Boolean specifying whether x axis ticks should be enabled (\code{TRUE}, default) or disabled (\code{FALSE}).}
+\item{axis_title}{\code{character}. The desired axis title for the edge selected by \code{axis_location}. Defaults to \code{NULL}.}
 
-\item{do_side_scale}{\code{logical}. Boolean specifying whether a smaller scalebar should be rendered on the right. Defaults to \code{FALSE}.\cr\cr I think it is unlikely anyone would want to use this, but the option is here. One potential usecase is that this scalebar shows the raw probability values (e.g. 0 to 255), whereas the x-axis is normalised to 0-1.}
-
-\item{side_scale_title}{\code{character}. The desired title for the right-hand scalebar, if turned on. Defaults to \code{NULL}.}
+\item{do_axis_ticks}{\code{logical}. Boolean specifying whether gradient axis ticks should be enabled (\code{TRUE}, default) or disabled (\code{FALSE}).}
 
 \item{outline_colour}{\code{character}. The colour of the scalebar outline. Defaults to black.}
 
 \item{outline_linewidth}{\code{numeric}. The linewidth of the scalebar outline. Defaults to \code{1}. Set to \code{0} to disable scalebar outline.}
+
+\item{monitor_performance}{\code{logical}. Boolean specifying whether verbose performance monitoring should be messaged to console. Defaults to \code{FALSE}.}
 }
 \value{
 ggplot of the scalebar.\cr\cr Unlike the other \verb{visualise_<>} functions in this package, does not directly export a png. This is because there are no squares that need to be rendered at a precise aspect ratio in this function. It can just be saved normally with \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}} with any sensible combination of height and width.
 }
 \description{
+\code{visualize_methylation_color_scale()} is an alias for \code{visualise_methylation_colour_scale()} - see \link{aliases}.
+
 This function creates a scalebar showing the colouring scheme based on methylation
 probability that is used in \code{\link[=visualise_methylation]{visualise_methylation()}}. Showing this is particularly
 important when the colour range is clamped via \code{low_clamp} and \code{high_clamp} (e.g.
@@ -72,13 +78,21 @@ visualise_methylation_colour_scale(
     high_clamp = 0.7*255,
     full_range = c(0, 255),
     background_colour = "lightblue1",
-    x_axis_title = "Methylation probability"
+    axis_location = "bottom",
+    axis_title = "Methylation probability"
 )
 
 ## Lower precision = colour banding
 visualise_methylation_colour_scale(
     precision = 10,
-    do_x_ticks = FALSE
+    do_axis_ticks = FALSE
+)
+
+## Left axis
+visualise_methylation_colour_scale(
+    precision = 100,
+    axis_location = "WEST",
+    axis_title = "vertical probability"
 )
 
 }

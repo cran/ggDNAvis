@@ -15,7 +15,7 @@ merge_fastq_with_metadata(
 
 \item{metadata}{\code{dataframe}. A dataframe containing metadata for each read in \code{fastq_data}.\cr\cr Must contain a \code{"read"} column identical to the column of the same name in \code{fastq_data}, containing unique read IDs (this is used to merge the dataframes). Must also contain a \code{"direction"} column of \code{"forward"} and \code{"reverse"} (e.g. \code{c("forward", "forward", "reverse")}) indicating the direction of each read.\cr\cr \strong{Important:} Reverse reads will have their sequence and quality scores reversed such that every output read is now forward. These will be stored in columns called \code{"forward_sequence"} and \code{"forward_quality"}.\cr\cr See \code{\link[=reverse_sequence_if_needed]{reverse_sequence_if_needed()}} and \code{\link[=reverse_quality_if_needed]{reverse_quality_if_needed()}} documentation for details of how the reversing is implemented.}
 
-\item{reverse_complement_mode}{\code{character}. Whether reverse-complemented sequences should be converted to DNA (i.e. A complements to T) or RNA (i.e. A complements to U). Must be either \code{"DNA"} or \code{"RNA"}. \emph{Only affects reverse-complemented sequences. Sequences that were forward to begin with are not altered.}\cr\cr Uses \code{\link[=reverse_complement]{reverse_complement()}} via \code{\link[=reverse_sequence_if_needed]{reverse_sequence_if_needed()}}.}
+\item{reverse_complement_mode}{\code{character}. Whether reverse-complemented sequences should be converted to DNA (i.e. A complements to T), RNA (i.e. A complements to U), or not complemented at all. Must be \code{"DNA"} (default), \code{"RNA"}, or \code{"reverse_only"} to reverse sequence order without complementing. \emph{Only affects reverse-complemented sequences. Sequences that were forward to begin with are not altered.}\cr\cr Uses \code{\link[=reverse_complement]{reverse_complement()}} via \code{\link[=reverse_sequence_if_needed]{reverse_sequence_if_needed()}}.}
 }
 \value{
 \code{dataframe}. A merged dataframe containing all columns from the input dataframes, as well as forward versions of sequences and qualities.
@@ -26,7 +26,8 @@ Merge a dataframe of sequence and quality data (as produced by
 metadata, reverse-complementing sequences if required such that all
 reads are now in the forward direction.
 \code{\link[=merge_methylation_with_metadata]{merge_methylation_with_metadata()}} is the equivalent function for
-working with FASTQs that contain DNA modification information.\cr\cr
+working with FASTQs that contain DNA modification information.
+
 FASTQ dataframe must contain columns of \code{"read"} (unique read ID),
 \code{"sequence"} (DNA sequence), and \code{"quality"} (FASTQ quality score).
 Other columns are allowed but not required, and will be preserved unaltered
@@ -35,7 +36,8 @@ Metadata dataframe must contain \code{"read"} (unique read ID) and \code{"direct
 (read direction, either \code{"forward"} or \code{"reverse"} for each read) columns,
 and can contain any other columns with arbitrary information for each read.
 Columns that might be useful include participant ID and family designations
-so that each read can be associated with its participant and family.\cr\cr
+so that each read can be associated with its participant and family.
+
 \strong{Important:} A key feature of this function is that it uses the direction
 column from the metadata to identify which rows are reverse reads. These reverse
 reads will then be reversed-complemented and have quality scores reversed
@@ -58,6 +60,16 @@ fastq_data <- read_fastq(fastq_file)
 metadata   <- read.csv(metadata_file)
 
 ## Merge data (including reversing if needed)
-merge_fastq_with_metadata(fastq_data, metadata)
+merge_fastq_with_metadata(
+    fastq_data,
+    metadata
+)
+
+## Merge data reversing but not complementing sequences
+merge_fastq_with_metadata(
+    fastq_data,
+    metadata,
+    reverse_complement_mode = "reverse_only"
+)
 
 }

@@ -12,8 +12,8 @@
 #' (SAM/BAM MM and ML tags) in the header lines, use
 #' [read_modified_fastq()] and [write_modified_fastq()].
 #'
-#' @param filename `character`. The file to be read. Defaults to [file.choose()] to select a file interactively.
 #' @param calculate_length `logical`. Whether or not `sequence_length` column should be calculated and included.
+#' @inheritParams read_modified_fastq
 #'
 #' @return `dataframe`. A dataframe with `read`, `sequence`, `quality`, and optionally `sequence_length` columns.
 #'
@@ -33,34 +33,81 @@
 #' read_fastq(fastq_file, calculate_length = TRUE)
 #'
 #' @export
-read_fastq <- function(filename = file.choose(), calculate_length = TRUE) {
+read_fastq <- function(filename = file.choose(), calculate_length = TRUE, strip_at = TRUE) {
     ## Validate arguments
-    for (argument in list(filename, calculate_length)) {
-        if (length(argument) != 1 || mean(is.na(argument)) != 0 || mean(is.null(argument)) != 0) {
-            abort(paste("Argument", argument, "must be a single value and not NA or NULL."), class = "argument_value_or_type")
+    ## ---------------------------------------------------------------------
+    not_na_or_null <- list(filename = filename, calculate_length = calculate_length, strip_at = strip_at)
+    for (argument in names(not_na_or_null)) {
+        if (length(not_na_or_null[[argument]]) != 1 || any(is.na(not_na_or_null[[argument]])) || any(is.null(not_na_or_null[[argument]]))) {bad_arg(argument, not_na_or_null, "must be a single value and not NA or NULL.")}
+    }
+    not_na_or_null <- NULL
+
+    if (!is.character(filename)) {
+        bad_arg("filename", list(filename = filename), "must be a character/string value.")
+    }
+
+    bool <- list(calculate_length = calculate_length, strip_at = strip_at)
+    for (argument in names(bool)) {
+        if (!is.logical(bool[[argument]])) {
+            bad_arg(argument, bool, "must be a logical/boolean value.")
         }
     }
-    if (is.character(filename) == FALSE) {
-        abort("Filename must be a character/string value.", class = "argument_value_or_type")
-    }
-    if (is.logical(calculate_length) == FALSE) {
-        abort("calculate_length must be a logical/boolean value.", class = "argument_value_or_type")
-    }
+    bool <- NULL
+    ## ---------------------------------------------------------------------
+
+
 
     ## Read and parse FASTQ
     input_fastq <- readLines(filename)
 
-    headers   <- input_fastq[1:length(input_fastq) %% 4 == 1]
-    sequences <- input_fastq[1:length(input_fastq) %% 4 == 2]
-    qualities <- input_fastq[1:length(input_fastq) %% 4 == 0]
+    headers   <- input_fastq[seq_along(input_fastq) %% 4 == 1]
+    sequences <- input_fastq[seq_along(input_fastq) %% 4 == 2]
+    qualities <- input_fastq[seq_along(input_fastq) %% 4 == 0]
 
     ## Create dataframe
     output_data <- data.frame(read = headers, sequence = sequences, quality = qualities)
     if (calculate_length) {
         output_data$sequence_length <- nchar(output_data$sequence)
     }
+    if (strip_at) {
+        output_data$read <- strip_leading_at(output_data$read)
+    }
 
     return(output_data)
+}
+
+
+#' Strip leading `@` from character vector
+#'
+#' @description
+#' This function removes a single leading `@` character
+#' from each element of a character vector when present.
+#' This is intended to deal with SAMtools > FASTQ translation
+#' often prefixing read IDs with an "`@`", which can result
+#' in read ID mismatches and metadata merging fails.
+#'
+#' @param string `character vector`. A vector (e.g. read IDs) to strip of a single leading "`@`" each wherever one is present.
+#' @return `character vector`. The same string but with one "`@`" removed from each element that started with one.
+#' @export
+#' @examples
+#' strip_leading_at(c("read_1", "@read_2", "@@@read_3", "", NA, NULL))
+strip_leading_at <- function(string) {
+    ## Validate
+    if (!is.character(string)) {
+        bad_arg("string", list(string = string), "must be a character/string.")
+    }
+
+
+    ## Check
+    unname(sapply(string, function(string) {
+        if (is.na(string)) {
+            return(NA)
+        } else if (substr(string, 1, 1) == "@") {
+            return(substr(string, 2, nchar(string)))
+        } else {
+            return(string)
+        }
+    }))
 }
 
 
@@ -76,8 +123,8 @@ read_fastq <- function(filename = file.choose(), calculate_length = TRUE) {
 #' Modification locations are the indices along the read at which modification was assessed
 #' e.g. a 3 indicates that the third base in the read was assessed for modifications of the given type.
 #' Modification probabilities are the probability that the given modification is present, given as
-#' an integer from 0-255 where integer \eqn{N} represents the probability space from \eqn{\frac{N}{256}}
-#' to \eqn{\frac{N+1}{256}}.\cr\cr
+#' an integer from 0-255 where integer \eqn{p} represents the probability space from \eqn{\frac{p}{256}}
+#' to \eqn{\frac{p+1}{256}}.\cr\cr
 #' To extract the numbers from these columns as numeric vectors to analyse, use [`string_to_vector()`] e.g.
 #' ``list_of_locations <- lapply(test_01$`C+h?_locations`, string_to_vector)``. Be aware that the SAM
 #' modification types often contain special characters, meaning the colname may need to be enclosed in
@@ -92,6 +139,7 @@ read_fastq <- function(filename = file.choose(), calculate_length = TRUE) {
 #' Dataframes produced by this function can be written back to modified FASTQ via [write_modified_fastq()].
 #'
 #' @param filename `character`. The file to be read. Defaults to [file.choose()] to select a file interactively.
+#' @param strip_at `logical`. Boolean value for whether "`@`" characters at the start of read IDs should automatically be stripped if they are present, via [strip_leading_at()].\cr\cr These "`@`"s tend to be introduced by writing BAM to FASTQ via `samtools fastq` and can cause read IDs to not match between FASTQ data and metadata, causing metadata merging to fail.
 #' @param debug `logical`. Boolean value for whether the extra `<MM/ML>_tags` and `<MM/ML>_raw` columns should be added to the dataframe. Defaults to `FALSE` as I can't imagine this is often helpful, but the option is provided to assist with debugging.
 #'
 #' @return `dataframe`. Dataframe of modification information, as described above.\cr\cr Sequences can be visualised with [visualise_many_sequences()] and modification information can be visualised with [visualise_methylation()] (despite the name, any type of information can be visualised as long as it has locations and probabilities columns).\cr\cr Can be written back to FASTQ via [write_modified_fastq()].
@@ -112,26 +160,35 @@ read_fastq <- function(filename = file.choose(), calculate_length = TRUE) {
 #' read_modified_fastq(modified_fastq_file, debug = TRUE)
 #'
 #' @export
-read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
+read_modified_fastq <- function(filename = file.choose(), strip_at = TRUE, debug = FALSE) {
     ## Validate arguments
-    for (argument in list(filename, debug)) {
-        if (length(argument) != 1 || mean(is.na(argument)) != 0 || mean(is.null(argument)) != 0) {
-            abort(paste("Argument", argument, "must be a single value and not NA or NULL."), class = "argument_value_or_type")
+    ## ---------------------------------------------------------------------
+    not_na_or_null <- list(filename = filename, debug = debug, strip_at = strip_at)
+    for (argument in names(not_na_or_null)) {
+        if (length(not_na_or_null[[argument]]) != 1 || any(is.na(not_na_or_null[[argument]])) || any(is.null(not_na_or_null[[argument]]))) {bad_arg(argument, not_na_or_null, "must be a single value and not NA or NULL.")}
+    }
+    not_na_or_null <- NULL
+
+    if (!is.character(filename)) {
+        bad_arg("filename", list(filename = filename), "must be a character/string value.")
+    }
+
+    bool <- list(debug = debug, strip_at = strip_at)
+    for (argument in names(bool)) {
+        if (!is.logical(bool[[argument]])) {
+            bad_arg(argument, bool, "must be a logical/boolean value.")
         }
     }
-    if (is.character(filename) == FALSE) {
-        abort("Filename must be a character/string value.", class = "argument_value_or_type")
-    }
-    if (is.logical(debug) == FALSE) {
-        abort("debug must be a logical/boolean value.", class = "argument_value_or_type")
-    }
+    bool <- NULL
+    ## ---------------------------------------------------------------------
+
 
 
     ## Parse FASTQ header - would be difficult to use alone as it requires
     ## specifically formatted headers. So defined within scope of master function.
     parse_fastq_header <- function(headers, sequences, debug = FALSE) {
         split_headers <- strsplit(headers, split = "\t")
-        if (mean(sapply(split_headers, length) == 3) != 1) {
+        if (any(lengths(split_headers) != 3)) {
             abort("FASTQ parsing assumes headers contain the read ID, the MM tag, and the ML tag, all separated by tabs (as generated by samtools fastq -T MM,ML). This means the header should give a vector of length 3 when split on tab ('\\t'). The current lengths are not all 3, meaning at least one header has an incorrect number of tags.", class = "argument_value_or_type")
         }
 
@@ -146,11 +203,6 @@ read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
         ## Extract MM tag into vectors of skipped bases numbers
         modification_skips_raw <- strsplit(MM_tags, split = ";")
 
-        # this old version assumed the modification types were always 4 characters long
-        #modification_types <- lapply(modification_skips_raw, function(x) substr(x, 1, 4))  ## Extract 4-digit modification types
-        #modification_skips <- lapply(modification_skips_raw, function(x) substr(x, 6, nchar(x))) ## Extract numerical modification locations
-
-        # this new version should work regardless of length
         modification_types <- lapply(modification_skips_raw, function(x) sapply(strsplit(x, ","), function(y) y[1]))
         modification_skips <- lapply(modification_skips_raw, function(x) sapply(strsplit(x, ","), function(y) {
             if (length(y) > 1) {
@@ -160,50 +212,47 @@ read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
             }
         }))
 
+        ## Use 'types' to name 'skips'
+        modification_skips <- Map(setNames, modification_skips, modification_types)
 
-        ## Convert MM tags into absolute vectors of
-        modification_locations <- list()
-        for (i in 1:length(read_ids)) {
-            read_locations <- character()
-            for (j in 1:length(modification_skips[[i]])) {
-                this_type       <- modification_types[[i]][j]
-                this_type_skips <- modification_skips[[i]][j]
-                target_base <- substr(this_type, 1, 1)
+        ## Create map of all locations of target bases
+        unique_modification_types <- unique(unlist(modification_types))
+        unique_modified_bases <- unique(substr(unique_modification_types, 1, 1))
+        base_locations <- lapply(unique_modified_bases, function(base) {
+            lapply(str_locate_all(sequences, base), function(x) {x[,1]})
+        })
+        names(base_locations) <- unique_modified_bases
 
-                this_type_locations <- convert_MM_vector_to_locations(sequences[i], string_to_vector(this_type_skips), target_base)
-                read_locations <- c(read_locations, vector_to_string(this_type_locations))
-            }
-            modification_locations[[i]] <- read_locations
-        }
 
-        ## WORKING ON ML:
-        ## Calculate how many CpGs (or other bases) were assessed for each type of modification along each read
-        modification_lengths <- lapply(modification_skips, function(x) {
-            sapply(x, function(y) length(string_to_vector(y)))
+        ## Convert MM tags (skips) into absolute vectors of locations
+        modification_locations <- lapply(seq_along(modification_skips), function(i) {
+            sapply(names(modification_skips[[i]]), function(type) {
+                indices_from_target_base <- cumsum(string_to_vector(modification_skips[[i]][type]) + 1)
+                target_base_locations <- base_locations[[substr(type, 1, 1)]][[i]]
+                locations <- target_base_locations[indices_from_target_base]
+                return(vector_to_string(locations))
+            })
         })
 
-        ## Go along the ML tag and extract the relevant indices of probabilities
-        modification_probabilities <- list()
-        for (i in 1:length(read_ids)) {
-            read_probabilities <- character()
+        ## WORKING ON ML:
+        ## Use lengths of skips vectors (i.e. number of assessed bases per read)
+        ## to split up probability list correctly.
+        modification_probabilities <- lapply(seq_along(modification_skips), function(i) {
+            lengths <- sapply(modification_skips[[i]], function(x) length(string_to_vector(x)))
 
-            start <- 1
-            end <- 0
-            for (length in modification_lengths[[i]]) {
-                end <- end + length
+            starts <- cumsum(c(0, head(lengths, -1))) + 1
+            ends   <- cumsum(lengths)
 
-                if (length != 0) {
-                    this_type_probabilities <- string_to_vector(ML_tags[i])[start:end]
+            ## For each modification type, return the relevant slice of the probabilities list (ML tag)
+            ## if length > 0, or "" if length == 0.
+            sapply(seq_along(modification_skips[[i]]), function(j) {
+                if (lengths[j] != 0) {
+                    return(vector_to_string(string_to_vector(ML_tags[[i]])[starts[j]:ends[j]]))
                 } else {
-                    this_type_probabilities <- ""
+                    return("")
                 }
-
-                read_probabilities <- c(read_probabilities, vector_to_string(this_type_probabilities))
-                start <- start + length
-            }
-
-            modification_probabilities[[i]] <- read_probabilities
-        }
+            })
+        })
 
         ## Return important values in list
         if (debug == TRUE) {
@@ -225,7 +274,7 @@ read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
                 modification_probabilities = modification_probabilities
             ))
         } else {
-            abort("debug needs to be a logical/boolean value", class = "argument_value_or_type")
+            bad_arg("debug", list(debug = debug), "must be a logical/boolean value.")
         }
 
     }
@@ -236,9 +285,9 @@ read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
     ## Read and parse FASTQ
     input_fastq <- readLines(filename)
 
-    headers   <- input_fastq[1:length(input_fastq) %% 4 == 1]
-    sequences <- input_fastq[1:length(input_fastq) %% 4 == 2]
-    qualities <- input_fastq[1:length(input_fastq) %% 4 == 0]
+    headers   <- input_fastq[seq_along(input_fastq) %% 4 == 1]
+    sequences <- input_fastq[seq_along(input_fastq) %% 4 == 2]
+    qualities <- input_fastq[seq_along(input_fastq) %% 4 == 0]
 
     header_info <- parse_fastq_header(headers, sequences, debug)
     modification_data <- data.frame(read = header_info$read_id,
@@ -269,13 +318,19 @@ read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
         }
     }
 
+
+    ## Strip @s if needed
+    if (strip_at) {
+        modification_data$read <- strip_leading_at(modification_data$read)
+    }
+
     ## Return result
     return(modification_data)
 }
 
 
 
-#' Convert MM tag to absolute index locations ([read_modified_fastq()] helper)
+#' Convert MM tag to absolute index locations (deprecated helper)
 #'
 #' This function takes a sequence, a SAM-style vector of number of potential
 #' target bases to skip in between each target base that was actually assessed,
@@ -335,19 +390,31 @@ read_modified_fastq <- function(filename = file.choose(), debug = FALSE) {
 #'
 #' @export
 convert_MM_vector_to_locations <- function(sequence, skips, target_base = "C") {
+    warn("convert_MM_vector_to_locations is no longer used so may be removed in future updates", class = "deprecated")
+
     ## Validate arguments
-    for (argument in list(sequence, target_base)) {
-        if (mean(is.null(argument)) != 0 || (length(argument) > 0 && mean(is.na(argument)) != 0)) {abort(paste("Argument", argument, "must not be NULL or NA."), class = "argument_value_or_type")}
+    ## ---------------------------------------------------------------------
+    not_na_or_null <- list(sequence = sequence, target_base = target_base)
+    for (argument in names(not_na_or_null)) {
+        if (any(is.null(not_na_or_null[[argument]])) || any(is.na(not_na_or_null[[argument]]))) {bad_arg(argument, not_na_or_null, "must not be NULL or NA.")}
     }
-    for (argument in list(sequence, target_base)) {
-        if (is.character(argument) == FALSE || length(argument) != 1) {abort(paste("Argument", argument, "must be a single character/string value."), class = "argument_value_or_type")}
+    not_na_or_null <- NULL
+
+    single_char <- list(sequence = sequence, target_base = target_base)
+    for (argument in names(single_char)) {
+        if (!is.character(single_char[[argument]]) || length(single_char[[argument]]) != 1) {bad_arg(argument, single_char, "must be a single character/string value.")}
     }
-    if (length(skips) == 0 || mean(is.na(skips)) != 0 || mean(is.null(skips)) != 0) {
+    single_char <- NULL
+
+    if (length(skips) == 0 || any(is.na(skips))|| any(is.null(skips))) {
         return(numeric())
     }
-    if (is.numeric(skips) == FALSE || mean(skips >= 0) != 1 || mean(skips %% 1 == 0) != 1) {
-        abort("Skips vector must be contain only non-negative integers", class = "argument_value_or_type")
+
+    if (!is.numeric(skips) || any(skips < 0) || any(skips %% 1 != 0)) {
+        bad_arg("skips", list(skips = skips), "must contain only non-negative integers")
     }
+    ## ---------------------------------------------------------------------
+
 
 
     ## This took a bit to wrap my head around.
@@ -394,12 +461,9 @@ convert_MM_vector_to_locations <- function(sequence, skips, target_base = "C") {
 #' (SAM/BAM MM and ML tags) in the header lines, use
 #' [read_modified_fastq()] and [write_modified_fastq()].
 #'
-#' @param dataframe `dataframe`. Dataframe containing modification information to write back to modified FASTQ. Must have columns for unique read ID and DNA sequence. Should also have a column for quality, unless wanting to fill in qualities with `"B"`.
-#' @param filename `character`. File to write the FASTQ to. Recommended to end with `.fastq` (warns but works if not). If set to `NA` (default), no file will be output, which may be useful for testing/debugging.
-#' @param read_id_colname `character`. The name of the column within the dataframe that contains the unique ID for each read. Defaults to `"read"`.
-#' @param sequence_colname `character`. The name of the column within the dataframe that contains the DNA sequence for each read. Defaults to `"sequence"`.\cr\cr The values within this column must be DNA sequences e.g. `"GGCGGC"`.
-#' @param quality_colname `character`. The name of the column within the dataframe that contains the FASTQ quality scores for each read. Defaults to `"quality"`. If scores are not known, can be set to `NA` to fill in quality with `"B"`.\cr\cr If not `NA`, must correspond to a column where the values are the FASTQ quality scores e.g. `"$12\">/2C;4:9F8:816E,6C3*,"` - see [`fastq_quality_scores`].
-#' @param return `logical`. Boolean specifying whether this function should return the FASTQ (as a character vector of each line in the FASTQ), otherwise it will return `invisible(NULL)`. Defaults to `FALSE`.
+#' @param dataframe Dataframe containing sequence information to write back to FASTQ. Must have columns for unique read ID and DNA sequence. Should also have a column for quality, unless wanting to fill in qualities with `"B"`.
+#' @inheritParams write_modified_fastq
+#' @inheritParams visualise_methylation
 #'
 #' @return `character vector`. The resulting FASTQ file as a character vector of its constituent lines (or `invisible(NULL)` if `return` is `FALSE`). This is probably mostly useful for debugging, as setting `filename` within this function directly writes to FASTQ via [writeLines()]. Therefore, defaults to returning `invisible(NULL)`.
 #'
@@ -426,26 +490,60 @@ convert_MM_vector_to_locations <- function(sequence, skips, target_base = "C") {
 #' )
 #'
 #' @export
-write_fastq <- function(dataframe, filename = NA, read_id_colname = "read", sequence_colname = "sequence", quality_colname = "quality", return = FALSE) {
+write_fastq <- function(
+    dataframe,
+    filename = NA,
+    ...,
+    read_id_colname = "read",
+    sequence_colname = "sequence",
+    quality_colname = "quality",
+    return = FALSE
+) {
+    ## Process aliases
+    ## ---------------------------------------------------------------------
+    dots_env <- list2env(list(...))
+    resolve_alias_map(.alias_maps()$write_fastq, dots_env)
+    ## ---------------------------------------------------------------------
+
+
+
     ## Validate arguments
-    for (argument in list(dataframe, filename, read_id_colname, sequence_colname, quality_colname, return)) {
-        if (mean(is.null(argument)) != 0) {abort(paste("Argument", argument, "must not be NULL."), class = "argument_value_or_type")}
+    ## ---------------------------------------------------------------------
+    not_null <- list(dataframe = dataframe, filename = filename, read_id_colname = read_id_colname, sequence_colname = sequence_colname, quality_colname = quality_colname, return = return)
+    for (argument in names(not_null)) {
+        if (any(is.null(not_null[[argument]]))) {bad_arg(argument, not_null, "must not be NULL.")}
     }
-    for (argument in list(filename, read_id_colname, sequence_colname, quality_colname, return)) {
-        if (length(argument) != 1) {abort(paste("Argument", argument, "must have length 1."), class = "argument_value_or_type")}
+    not_null <- NULL
+
+    length_1 <- list(filename = filename, read_id_colname = read_id_colname, sequence_colname = sequence_colname, quality_colname = quality_colname, return = return)
+    for (argument in names(length_1)) {
+        if (length(length_1[[argument]]) != 1) {bad_arg(argument, length_1, "must have length 1.")}
     }
-    for (argument in list(read_id_colname, sequence_colname, return)) {
-        if (mean(is.na(argument)) != 0) {abort(paste("Argument", argument, "must not be NA."), class = "argument_value_or_type")}
+    length_1 <- NULL
+
+    not_na <- list(read_id_colname = read_id_colname, sequence_colname = sequence_colname, return = return)
+    for (argument in names(not_na)) {
+        if (any(is.na(not_na[[argument]]))) {bad_arg(argument, not_na, "must not be NA.")}
     }
-    for (argument in list(return)) {
-        if (is.logical(argument) == FALSE) {abort("return must be a logical/boolean value.", class = "argument_value_or_type")}
+    not_na <- NULL
+
+    bool <- list(return = return)
+    for (argument in names(bool)) {
+        if (!is.logical(bool[[argument]])) {bad_arg(argument, bool, "must be a logical/boolean value.")}
     }
-    for (argument in list(filename, read_id_colname, sequence_colname, quality_colname)) {
-        if (mean(is.na(argument)) == 0 && is.character(argument) == FALSE) {abort(paste("Argument", argument, "must be of type character."), class = "argument_value_or_type")}
+    bool <- NULL
+
+    char <- list(filename = filename, read_id_colname = read_id_colname, sequence_colname = sequence_colname, quality_colname = quality_colname)
+    for (argument in names(char)) {
+        if (!any(is.na(char[[argument]])) && !is.character(char[[argument]])) {bad_arg(argument, char, "must be of type character.")}
     }
+    char <- NULL
+
     for (colname in c(read_id_colname, sequence_colname, quality_colname)) {
-        if (is.na(colname) == FALSE && colname %in% colnames(dataframe) == FALSE) {abort(paste0("There is no column called '", colname, "' in the dataframe."), class = "argument_value_or_type")}
+        if (!is.na(colname) && !(colname %in% colnames(dataframe))) {abort(paste0("There is no column called '", colname, "' in the dataframe.\nCurrent columns: ", paste(colnames(dataframe), collapse = ", ")), class = "argument_value_or_type")}
     }
+    ## ---------------------------------------------------------------------
+
 
 
     ## Main function body
@@ -469,7 +567,7 @@ write_fastq <- function(dataframe, filename = NA, read_id_colname = "read", sequ
     ## Check if filename is set and warn if not fastq, then export file
     if (is.na(filename) == FALSE) {
         if (is.character(filename) == FALSE) {
-            abort("Filename must be a character/string (or NA if no file export wanted)", class = "argument_value_or_type")
+            bad_arg("filename", list(filename = filename), "must be a character/string (or NA if no file export wanted.")
         }
         if (tolower(substr(filename, nchar(filename)-5, nchar(filename))) != ".fastq") {
             warn("Output will be formatted as FASTQ even if file extension is different.", class = "filetype_recommendation")
@@ -506,7 +604,7 @@ write_fastq <- function(dataframe, filename = NA, read_id_colname = "read", sequ
 #' Default arguments are set up to work with the included [`example_many_sequences`] data.
 #'
 #' @param dataframe `dataframe`. Dataframe containing modification information to write back to modified FASTQ. Must have columns for unique read ID, DNA sequence, and at least one set of locations and probabilities for a particular modification type (e.g. 5C methylation).
-#' @param filename `character`. File to write the modified FASTQ to. Recommended to end with `.fastq` (warns but works if not). If set to `NA` (default), no file will be output, which may be useful for testing/debugging.
+#' @param filename `character`. File to write the FASTQ to. Recommended to end with `.fastq` (warns but works if not). If set to `NA` (default), no file will be output, which may be useful for testing/debugging.
 #' @param read_id_colname `character`. The name of the column within the dataframe that contains the unique ID for each read. Defaults to `"read"`.
 #' @param sequence_colname `character`. The name of the column within the dataframe that contains the DNA sequence for each read. Defaults to `"sequence"`.\cr\cr The values within this column must be DNA sequences e.g. `"GGCGGC"`.
 #' @param quality_colname `character`. The name of the column within the dataframe that contains the FASTQ quality scores for each read. Defaults to `"quality"`. If scores are not known, can be set to `NA` to fill in quality with `"B"`.\cr\cr If not `NA`, must correspond to a column where the values are the FASTQ quality scores e.g. `"$12\">/2C;4:9F8:816E,6C3*,"` - see [`fastq_quality_scores`].
@@ -515,6 +613,8 @@ write_fastq <- function(dataframe, filename = NA, read_id_colname = "read", sequ
 #' @param modification_prefixes `character vector`. Vector of the prefixes to be used for the MM tags specifying modification type. These are usually generated by Dorado/Guppy based on the original modified basecalling settings, and more details can be found in the SAM optional tag specifications. Defaults to `c("C+h?", "C+m?")`.\cr\cr `locations_colnames`, `probabilities_colnames`, and `modification_prefixes` must all have the same length e.g. 2 if there were 2 modification types assessed.
 #' @param include_blank_tags `logical`. Boolean specifying what to do if a particular read has no assessed locations for a given modification type from `modification_prefixes`.\cr\cr If `TRUE` (default), blank tags will be written e.g. `"C+h?;"` (whereas a normal, non-blank tag looks like `"C+h?,0,0,0,0;"`). If `FALSE`, tags with no assessed locations in that read will not be written at all.
 #' @param return `logical`. Boolean specifying whether this function should return the FASTQ (as a character vector of each line in the FASTQ), otherwise it will return `invisible(NULL)`. Defaults to `FALSE`.
+#'
+#' @inheritParams visualise_methylation
 #'
 #' @return `character vector`. The resulting modified FASTQ file as a character vector of its constituent lines (or `invisible(NULL)` if `return` is `FALSE`). This is probably mostly useful for debugging, as setting `filename` within this function directly writes to FASTQ via [writeLines()]. Therefore, defaults to returning `invisible(NULL)`.
 #'
@@ -549,34 +649,76 @@ write_fastq <- function(dataframe, filename = NA, read_id_colname = "read", sequ
 #' )
 #'
 #' @export
-write_modified_fastq <- function(dataframe, filename = NA, read_id_colname = "read", sequence_colname = "sequence", quality_colname = "quality", locations_colnames = c("hydroxymethylation_locations", "methylation_locations"), probabilities_colnames = c("hydroxymethylation_probabilities", "methylation_probabilities"), modification_prefixes = c("C+h?", "C+m?"), include_blank_tags = TRUE, return = FALSE) {
+write_modified_fastq <- function(
+    dataframe,
+    filename = NA,
+    ...,
+    read_id_colname = "read",
+    sequence_colname = "sequence",
+    quality_colname = "quality",
+    locations_colnames = c("hydroxymethylation_locations", "methylation_locations"),
+    probabilities_colnames = c("hydroxymethylation_probabilities", "methylation_probabilities"),
+    modification_prefixes = c("C+h?", "C+m?"),
+    include_blank_tags = TRUE,
+    return = FALSE
+) {
+    ## Process aliases
+    ## ---------------------------------------------------------------------
+    dots_env <- list2env(list(...))
+    resolve_alias_map(.alias_maps()$write_modified_fastq, dots_env)
+    ## ---------------------------------------------------------------------
+
+
+
     ## Validate arguments
-    for (argument in list(dataframe, filename, read_id_colname, sequence_colname, quality_colname, locations_colnames, probabilities_colnames, modification_prefixes, include_blank_tags, return)) {
-        if (mean(is.null(argument)) != 0) {abort(paste("Argument", argument, "must not be NULL."), class = "argument_value_or_type")}
+    ## ---------------------------------------------------------------------
+    not_null <- list(dataframe = dataframe, filename = filename, read_id_colname = read_id_colname, sequence_colname = sequence_colname, quality_colname = quality_colname, locations_colnames = locations_colnames, probabilities_colnames = probabilities_colnames, modification_prefixes = modification_prefixes, include_blank_tags = include_blank_tags, return = return)
+    for (argument in names(not_null)) {
+        if (any(is.null(not_null[[argument]]))) {bad_arg(argument, not_null, "must not be NULL.")}
     }
-    for (argument in list(filename, read_id_colname, sequence_colname, quality_colname, include_blank_tags, return)) {
-        if (length(argument) != 1) {abort(paste("Argument", argument, "must have length 1."), class = "argument_value_or_type")}
+    not_null <- NULL
+
+    length_1 <- list(filename = filename, read_id_colname = read_id_colname, sequence_colname = sequence_colname, quality_colname = quality_colname, include_blank_tags = include_blank_tags, return = return)
+    for (argument in names(length_1)) {
+        if (length(length_1[[argument]]) != 1) {bad_arg(argument, length_1, "must have length 1.")}
     }
-    for (argument in list(locations_colnames, probabilities_colnames, modification_prefixes)) {
-        if (length(argument) < 1) {abort(paste("Argument", argument, "must have length of at least 1."), class = "argument_value_or_type")}
+    length_1 <- NULL
+
+    length_ge_1 <- list(locations_colnames = locations_colnames, probabilities_colnames = probabilities_colnames, modification_prefixes = modification_prefixes)
+    for (argument in names(length_ge_1)) {
+        if (length(length_ge_1[[argument]]) < 1) {bad_arg(argument, length_ge_1, "must have length of at least 1.")}
     }
-    for (argument in list(read_id_colname, sequence_colname, locations_colnames, probabilities_colnames, modification_prefixes, include_blank_tags, return)) {
-        if (mean(is.na(argument)) != 0) {abort(paste("Argument", argument, "must not be NA."), class = "argument_value_or_type")}
+    length_ge_1 <- NULL
+
+    not_na <- list(read_id_colname = read_id_colname, sequence_colname = sequence_colname, locations_colnames = locations_colnames, probabilities_colnames = probabilities_colnames, modification_prefixes = modification_prefixes, include_blank_tags = include_blank_tags, return = return)
+    for (argument in names(not_na)) {
+        if (any(is.na(not_na[[argument]]))) {bad_arg(argument, not_na, "must not be NA.")}
     }
-    for (argument in list(include_blank_tags, return)) {
-        if (is.logical(argument) == FALSE) {abort("return must be a logical/boolean value.", class = "argument_value_or_type")}
+    not_na <- NULL
+
+    bool <- list(include_blank_tags = include_blank_tags, return = return)
+    for (argument in names(bool)) {
+        if (!is.logical(bool[[argument]])) {bad_arg(argument, bool, "must be a logical/boolean value.")}
     }
-    for (argument in list(filename, read_id_colname, sequence_colname, quality_colname, locations_colnames, probabilities_colnames, modification_prefixes)) {
-        if (mean(is.na(argument)) == 0 && is.character(argument) == FALSE) {abort(paste("Argument", argument, "must be of type character."), class = "argument_value_or_type")}
+    bool <- NULL
+
+    char <- list(filename = filename, read_id_colname = read_id_colname, sequence_colname = sequence_colname, quality_colname = quality_colname, locations_colnames = locations_colnames, probabilities_colnames = probabilities_colnames, modification_prefixes = modification_prefixes)
+    for (argument in names(char)) {
+        if (!any(is.na(char[[argument]])) && !is.character(char[[argument]])) {bad_arg(argument, char, "must be of type character.")}
     }
+    char <- NULL
+
+
     for (colname in c(read_id_colname, sequence_colname, quality_colname, locations_colnames, probabilities_colnames)) {
-        if (is.na(colname) == FALSE && colname %in% colnames(dataframe) == FALSE) {abort(paste0("There is no column called '", colname, "' in the dataframe."), class = "argument_value_or_type")}
+        if (is.na(colname) == FALSE && colname %in% colnames(dataframe) == FALSE) {abort(paste0("There is no column called '", colname, "' in the dataframe.\nCurrent colnames: ", paste(colnames(dataframe), collapse = ", ")), class = "argument_value_or_type")}
     }
     if (length(locations_colnames) != length(probabilities_colnames) ||
         length(locations_colnames) != length(modification_prefixes) ||
         length(probabilities_colnames) != length(modification_prefixes)) {
-        abort("The vectors of location column names, probability column names, and modification prefixes must all be the same length e.g. 2 if there are 2 types of modification in the data.", class = "argument_value_or_type")
+        abort(paste0("The vectors of location column names, probability column names, and modification prefixes must all be the same length e.g. 2 if there are 2 types of modification in the data.\n'locations_colnames' length: ", length(locations_colnames), "\n'probabilities_colnames' length: ", length(probabilities_colnames), "\n'modification_prefixes' length: ", length(modification_prefixes)), class = "argument_value_or_type")
     }
+    ## ---------------------------------------------------------------------
+
 
 
     ## This function would be difficult to use, and I can't imagine many use
@@ -585,7 +727,7 @@ write_modified_fastq <- function(dataframe, filename = NA, read_id_colname = "re
     construct_header <- function(read_id, sequence, locations_list, probabilities_list, modification_prefixes, include_blank_tags) {
         MM <- "MM:Z:"
         ML <- "ML:B:C"
-        for (i in 1:length(modification_prefixes)) {
+        for (i in seq_along(modification_prefixes)) {
             modification_type <- modification_prefixes[i]
             locations         <- string_to_vector(locations_list[[i]])
             target_base       <- substr(modification_type, 1, 1)
@@ -640,7 +782,7 @@ write_modified_fastq <- function(dataframe, filename = NA, read_id_colname = "re
     ## Check if filename is set and warn if not fastq, then export file
     if (is.na(filename) == FALSE) {
         if (is.character(filename) == FALSE) {
-            abort("Filename must be a character/string (or NA if no file export wanted)", class = "argument_value_or_type")
+            bad_arg("filename", list(filename = filename), "must be a character/string (or NA if no file export wanted.")
         }
         if (tolower(substr(filename, nchar(filename)-5, nchar(filename))) != ".fastq") {
             warn("Output will be formatted as FASTQ even if file extension is different.", class = "filetype_recommendation")
@@ -698,23 +840,34 @@ write_modified_fastq <- function(dataframe, filename = NA, read_id_colname = "re
 #' @export
 convert_locations_to_MM_vector <- function(sequence, locations, target_base = "C") {
     ## Validate arguments
-    for (argument in list(sequence, target_base)) {
-        if (mean(is.null(argument)) != 0 || (length(argument) > 0 && mean(is.na(argument)) != 0)) {abort(paste("Argument", argument, "must not be NULL or NA."), class = "argument_value_or_type")}
+    ## ---------------------------------------------------------------------
+    not_na_or_null <- list(sequence = sequence, target_base = target_base)
+    for (argument in names(not_na_or_null)) {
+        if (any(is.na(not_na_or_null[[argument]])) || any(is.null(not_na_or_null[[argument]]))) {bad_arg(argument, not_na_or_null, "must not be NA or NULL.")}
     }
-    for (argument in list(sequence, target_base)) {
-        if (is.character(argument) == FALSE || length(argument) != 1) {abort(paste("Argument", argument, "must be a single character/string value."), class = "argument_value_or_type")}
+    not_na_or_null <- NULL
+
+    single_char <- list(sequence = sequence, target_base = target_base)
+    for (argument in names(single_char)) {
+        if (!is.character(single_char[[argument]]) || length(single_char[[argument]]) != 1) {bad_arg(argument, single_char, "must be a single character/string value.")}
     }
+    single_char <- NULL
+
     if (length(locations) == 0 || mean(is.na(locations)) != 0 || mean(is.null(locations)) != 0) {
         return(numeric())
     }
-    if (is.numeric(locations) == 0 || mean(locations > 0) != 1 || mean(locations %% 1 == 0) != 1) {
-        abort("Locations vector must be contain only positive integers", class = "argument_value_or_type")
+
+    if (!is.numeric(locations) || any(locations < 1) || any(locations %% 1 != 0)) {
+        bad_arg("locations", list(locations = locations), "must contain only positive integers.")
     }
 
     all_possible_locations <- unname(str_locate_all(sequence, target_base)[[1]][,1])
-    if (mean(locations %in% all_possible_locations) != 1) {
-        abort("All locations provided must be indices where the target base occurs in the sequence\n(e.g. must all correspond to 'C' in the sequence if target_base is 'C')\nIf sequences were reversed, this will fail unless assessed locations are symmetric (e.g. CpG) and offset is set to 1 in reversing function.", class = "argument_value_or_type")
+    if (any(!(locations %in% all_possible_locations))) {
+        abort(paste0("All locations provided must be indices where the target base occurs in the sequence\n(e.g. must all correspond to 'C' in the sequence if target_base is 'C')\nIf sequences were reversed, this will fail unless assessed locations are symmetric (e.g. CpG) and offset is set to 1 in reversing function.\nProvided locations: ", paste(locations, collapse = ", "), "\nTarget base occurences: ", paste(all_possible_locations, collapse = ", ")), class = "argument_value_or_type")
     }
+    ## ---------------------------------------------------------------------
+
+
 
     output_MM <- numeric()
     skipped_possible_bases <- 0

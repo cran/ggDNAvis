@@ -1,5 +1,10 @@
 #' Visualise many DNA/RNA sequences
 #'
+#' @aliases visualize_many_sequences
+#'
+#' @description
+#' `visualize_many_sequences()` is an alias for `visualise_many_sequences()` - see [aliases].
+#'
 #' This function takes a vector of DNA/RNA sequences (each sequence can be
 #' any length and they can be different lengths), and plots each sequence
 #' as base-coloured squares along a single line. Setting `filename` allows direct
@@ -9,17 +14,8 @@
 #'
 #' @param sequences_vector `character vector`. The sequences to visualise, often created from a dataframe via [extract_and_sort_sequences()]. E.g. `c("GGCGGC", "", "AGCTAGCTA")`.
 #' @param sequence_colours `character vector`, length 4. A vector indicating which colours should be used for each base. In order: `c(A_colour, C_colour, G_colour, T/U_colour)`.\cr\cr Defaults to red, green, blue, purple in the default shades produced by ggplot with 4 colours, i.e. `c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")`, accessed via [`sequence_colour_palettes`]`$ggplot_style`.
-#' @param background_colour `character`. The colour of the background. Defaults to white.
-#' @param margin `numeric`. The size of the margin relative to the size of each base square. Defaults to `0.5` (half the side length of each base square).\cr\cr Very small margins (\eqn{\le}0.25) may cause thick outlines to be cut off at the edges of the plot. Recommended to either use a wider margin or a smaller `outline_linewidth`.
-#' @param sequence_text_colour `character`. The colour of the text within the bases (e.g. colour of "A" letter within boxes representing adenosine bases). Defaults to black.
-#' @param sequence_text_size `numeric`. The size of the text within the bases (e.g. size of "A" letter within boxes representing adenosine bases). Defaults to `16`. Set to `0` to hide sequence text (show box colours only).
-#' @param outline_colour `character`. The colour of the box outlines. Defaults to black.
-#' @param outline_linewidth `numeric`. The linewidth of the box outlines. Defaults to `3`. Set to `0` to disable box outlines.
-#' @param outline_join `character`. One of `"mitre"`, `"round"`, or `"bevel"` specifying how outlines should be joined at the corners of boxes. Defaults to `"mitre"`. It would be unusual to need to change this.
-#' @param return `logical`. Boolean specifying whether this function should return the ggplot object, otherwise it will return `invisible(NULL)`. Defaults to `TRUE`.
-#' @param filename `character`. Filename to which output should be saved. If set to `NA` (default), no file will be saved. Recommended to end with `".png"`, but can change if render device is changed.
-#' @param render_device `function/character`. Device to use when rendering. See [ggplot2::ggsave()] documentation for options. Defaults to [`ragg::agg_png`]. Can be set to `NULL` to infer from file extension, but results may vary between systems.
-#' @param pixels_per_base `integer`. How large each box should be in pixels, if file output is turned on via setting `filename`. Corresponds to dpi of the exported image.\cr\cr If text is shown (i.e. `sequence_text_size` is not 0), needs to be fairly large otherwise text is blurry. Defaults to `100`.
+#'
+#' @inheritParams visualise_methylation
 #'
 #' @return A ggplot object containing the full visualisation, or `invisible(NULL)` if `return = FALSE`. It is often more useful to use `filename = "myfilename.png"`, because then the visualisation is exported at the correct aspect ratio.
 #'
@@ -51,6 +47,11 @@
 #'     return = FALSE,
 #'     sequence_colours = sequence_colour_palettes$bright_pale,
 #'     sequence_text_colour = "white",
+#'     index_annotation_interval = 3,
+#'     index_annotation_lines = 1:51,
+#'     index_annotation_full_line = FALSE,
+#'     index_annotation_always_first_base = FALSE,
+#'     index_annotation_always_last_base = FALSE,
 #'     background_colour = "lightgrey",
 #'     outline_linewidth = 0,
 #'     margin = 0
@@ -63,97 +64,266 @@
 #' }
 #'
 #' @export
-visualise_many_sequences <- function(sequences_vector, sequence_colours = sequence_colour_palettes$ggplot_style, background_colour = "white",
-                                     margin = 0.5, sequence_text_colour = "black", sequence_text_size = 16,
-                                     outline_colour = "black", outline_linewidth = 3, outline_join = "mitre",
-                                     return = TRUE, filename = NA, render_device = ragg::agg_png, pixels_per_base = 100) {
+visualise_many_sequences <- function(
+    sequences_vector,
+    ...,
+    sequence_colours = sequence_colour_palettes$ggplot_style,
+    background_colour = "white",
+    margin = 0.5,
+    sequence_text_colour = "black",
+    sequence_text_size = 16,
+    index_annotation_lines = c(1),
+    index_annotation_colour = "darkred",
+    index_annotation_size = 12.5,
+    index_annotation_interval = 15,
+    index_annotations_above = TRUE,
+    index_annotation_vertical_position = 1/3,
+    index_annotation_full_line = TRUE,
+    index_annotation_always_first_base = TRUE,
+    index_annotation_always_last_base = TRUE,
+    outline_colour = "black",
+    outline_linewidth = 3,
+    outline_join = "mitre",
+    return = TRUE,
+    filename = NA,
+    force_raster = FALSE,
+    render_device = ragg::agg_png,
+    pixels_per_base = 100,
+    monitor_performance = FALSE
+) {
+    ## Validate monitor_performance then store start time
+    start_time <- monitor_start(monitor_performance, "visualise_many_sequences")
+
+    ## Process aliases
+    ## ---------------------------------------------------------------------
+    monitor_time <- monitor(monitor_performance, start_time, start_time, "resolving aliases")
+    dots_env <- list2env(list(...))
+    resolve_alias_map(.alias_maps()$visualise_many_sequences, dots_env)
+    ## ---------------------------------------------------------------------
+
+
+
     ## Validate arguments
-    for (argument in list(sequences_vector, sequence_colours, background_colour, margin, sequence_text_colour, sequence_text_size, outline_colour, outline_linewidth, outline_join, return, filename, pixels_per_base)) {
-        if (mean(is.null(argument)) != 0) {abort(paste("Argument", argument, "must not be null."), class = "argument_value_or_type")}
+    ## ---------------------------------------------------------------------
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "validating arguments")
+    not_null <- list(sequences_vector = sequences_vector, sequence_colours = sequence_colours, background_colour = background_colour, margin = margin, sequence_text_colour = sequence_text_colour, sequence_text_size = sequence_text_size, index_annotation_colour = index_annotation_colour, index_annotation_size = index_annotation_size, index_annotation_interval = index_annotation_interval, index_annotations_above = index_annotations_above, index_annotation_vertical_position = index_annotation_vertical_position, index_annotation_full_line = index_annotation_full_line, index_annotation_always_first_base = index_annotation_always_first_base, index_annotation_always_last_base = index_annotation_always_last_base, outline_colour = outline_colour, outline_linewidth = outline_linewidth, outline_join = outline_join, return = return, force_raster = force_raster, filename = filename, pixels_per_base = pixels_per_base)
+    for (argument in names(not_null)) {
+        if (any(is.null(not_null[[argument]]))) {bad_arg(argument, not_null, "must not be NULL.")}
     }
-    for (argument in list(background_colour, margin, sequence_text_colour, sequence_text_size, outline_colour, outline_linewidth, outline_join, return, filename, pixels_per_base)) {
-        if (length(argument) != 1) {abort(paste("Argument", argument, "must have length 1"), class = "argument_value_or_type")}
+    not_null <- NULL
+
+    length_1 <- list(background_colour = background_colour, margin = margin, sequence_text_colour = sequence_text_colour, sequence_text_size = sequence_text_size, index_annotation_colour = index_annotation_colour, index_annotation_size = index_annotation_size, index_annotation_interval = index_annotation_interval, index_annotations_above = index_annotations_above, index_annotation_vertical_position = index_annotation_vertical_position, index_annotation_full_line = index_annotation_full_line, index_annotation_always_first_base = index_annotation_always_first_base, index_annotation_always_last_base = index_annotation_always_last_base, outline_colour = outline_colour, outline_linewidth = outline_linewidth, outline_join = outline_join, return = return, filename = filename, force_raster = force_raster, pixels_per_base = pixels_per_base)
+    for (argument in names(length_1)) {
+        if (length(length_1[[argument]]) != 1) {bad_arg(argument, length_1, "must have length 1.")}
     }
-    for (argument in list(sequences_vector, sequence_colours, background_colour, margin, sequence_text_colour, sequence_text_size, outline_colour, outline_linewidth, outline_join, return, pixels_per_base)) {
-        if (mean(is.na(argument)) != 0) {abort(paste("Argument", argument, "must not be NA"), class = "argument_value_or_type")}
+    length_1 <- NULL
+
+    not_na <- list(sequences_vector = sequences_vector, sequence_colours = sequence_colours, background_colour = background_colour, margin = margin, sequence_text_colour = sequence_text_colour, sequence_text_size = sequence_text_size, index_annotation_colour = index_annotation_colour, index_annotation_size = index_annotation_size, index_annotation_interval = index_annotation_interval, index_annotations_above = index_annotations_above, index_annotation_vertical_position = index_annotation_vertical_position, index_annotation_full_line = index_annotation_full_line, index_annotation_always_first_base = index_annotation_always_first_base, index_annotation_always_last_base = index_annotation_always_last_base, outline_colour = outline_colour, outline_linewidth = outline_linewidth, outline_join = outline_join, return = return, force_raster = force_raster, pixels_per_base = pixels_per_base)
+    for (argument in names(not_na)) {
+        if (any(is.na(not_na[[argument]]))) {bad_arg(argument, not_na, "must not be NA.")}
     }
-    if (is.character(sequence_colours) == FALSE || length(sequence_colours) != 4) {
-        abort("Must provide exactly 4 sequence colours, in A C G T order, as a length-4 character vector.", class = "argument_value_or_type")
+    not_na <- NULL
+
+    ## Interpret NA/NULL/empty argument as not wanting any annotations
+    if (any(is.na(index_annotation_lines)) || any(is.null(index_annotation_lines)) || length(index_annotation_lines) == 0 || (length(index_annotation_lines) == 1 && index_annotation_lines == 0)) {
+        index_annotation_lines <- integer(0)
     }
-    for (argument in list(sequences_vector, background_colour, sequence_text_colour, outline_colour, outline_join)) {
-        if (is.character(argument) == FALSE) {abort(paste("Argument", argument, "must be a character/string."), class = "argument_value_or_type")}
+
+    if (!is.character(sequence_colours) || length(sequence_colours) != 4) {
+        bad_arg("sequence_colours", list(sequence_colours = sequence_colours), "must provide exactly 4 sequence colours, in A C G T order, as a length-4 character vector.")
     }
-    for (argument in list(margin, sequence_text_size, outline_linewidth)) {
-        if (is.numeric(argument) == FALSE || argument < 0) {
-            abort(paste("Argument", argument, "must be a non-negative number"), class = "argument_value_or_type")
-        }
+
+    characters <- list(sequences_vector = sequences_vector, background_colour = background_colour, sequence_text_colour = sequence_text_colour, index_annotation_colour = index_annotation_colour, outline_colour = outline_colour, outline_join = outline_join)
+    for (argument in names(characters)) {
+        if (!is.character(characters[[argument]])) {bad_arg(argument, characters, "must be a character/string.")}
     }
-    for (argument in list(pixels_per_base)) {
-        if (is.numeric(argument) == FALSE || argument %% 1 != 0 || argument < 1) {
-            abort("pixels_per_base must be a positive integer", class = "argument_value_or_type")
-        }
+    characters <- NULL
+
+    non_neg_nums <- list(margin = margin, sequence_text_size = sequence_text_size, index_annotation_size = index_annotation_size, outline_linewidth = outline_linewidth, index_annotation_interval = index_annotation_interval, index_annotation_vertical_position = index_annotation_vertical_position, pixels_per_base = pixels_per_base)
+    for (argument in names(non_neg_nums)) {
+        if (!is.numeric(non_neg_nums[[argument]]) || any(non_neg_nums[[argument]] < 0)) {bad_arg(argument, non_neg_nums, "must be a non-negative number.")}
     }
-    for (argument in list(return)) {
-        if (is.logical(argument) == FALSE) {abort(paste("Argument:", argument, "must be a logical/boolean value."), class = "argument_value_or_type")}
+    non_neg_nums <- NULL
+
+    ints <- list(index_annotation_interval = index_annotation_interval, pixels_per_base = pixels_per_base)
+    for (argument in names(ints)) {
+        if (ints[[argument]] %% 1 != 0) {bad_arg(argument, ints, "must be an integer.")}
     }
+    ints <- NULL
+
+    pos <- list(pixels_per_base = pixels_per_base)
+    for (argument in names(pos)) {
+        if (any(pos[[argument]] <= 0)) {bad_arg(argument, pos, "must be positive.")}
+    }
+    pos <- NULL
+
+    bools <- list(return = return, index_annotations_above = index_annotations_above, index_annotation_full_line = index_annotation_full_line, index_annotation_always_first_base = index_annotation_always_first_base, index_annotation_always_last_base = index_annotation_always_last_base, force_raster = force_raster)
+    for (argument in names(bools)) {
+        if (!is.logical(bools[[argument]])) {bad_arg(argument, bools, "must be logical/boolean.")}
+    }
+    bools <- NULL
+
     if (!(tolower(outline_join) %in% c("mitre", "round", "bevel"))) {
-        abort("outline_join must be one of 'mitre', 'round', or 'bevel'.", class = "argument_value_or_type")
+        bad_arg("outline_join", list(outline_join = outline_join), "must be one of 'mitre', 'round', or 'bevel'.")
     }
+
+    if (length(index_annotation_lines) > 0 && (!is.numeric(index_annotation_lines) || any(index_annotation_lines %% 1 != 0) || any(index_annotation_lines <= 0))) {
+        bad_arg("index_annotation_lines", list(index_annotation_lines = index_annotation_lines), "must be a vector of positive integers, or NA.")
+    }
+
     ## Warn about outlines getting cut off
     if (margin <= 0.25 && outline_linewidth > 0) {
         warn("If margin is small and outlines are on (outline_linewidth > 0), outlines may be cut off at the edges of the plot. Check if this is happening and consider using a bigger margin.", class = "parameter_recommendation")
     }
+
     ## Accept NA as NULL for render_device
     if (is.atomic(render_device) && any(is.na(render_device))) {render_device <- NULL}
 
 
+    ## Automatically turn off annotations if size or interval is set to 0.
+    if (index_annotation_interval == 0 && length(index_annotation_lines) > 0 ) {
+        cli_alert_info("Automatically emptying index_annotation_lines as index_annotation_interval is 0", class = "turn_off_annotations_by_other_argument")
+        index_annotation_lines <- integer(0)
+    } else if (index_annotation_size == 0 && length(index_annotation_lines) > 0 ) {
+        cli_alert_info("Automatically emptying index_annotation_lines as index_annotation_size is 0", class = "turn_off_annotations_by_other_argument")
+        index_annotation_lines <- integer(0)
+    }
+
+    ## Automatically sort and unique-ify index annotations lines
+    sorted_index_annotation_lines <- sort(index_annotation_lines, na.last = TRUE)
+    if (any(sorted_index_annotation_lines != index_annotation_lines)) {
+        cli_alert_info(paste0("Automatically sorting index_annotation_lines.\nBefore: ", paste(index_annotation_lines, collapse = ", "), "\nAfter: ", paste(sorted_index_annotation_lines, collapse = ", ")), class = "sanitising_index_annotation_lines")
+        index_annotation_lines <- sorted_index_annotation_lines
+    }
+    unique_index_annotation_lines <- unique(index_annotation_lines)
+    if (length(unique_index_annotation_lines) != length(index_annotation_lines)) {
+        cli_alert_info(paste0("Automatically making index_annotation_lines unique.\nBefore: ", paste(index_annotation_lines, collapse = ", "), "\nAfter: ", paste(unique_index_annotation_lines, collapse = ", ")), class = "sanitising_index_annotation_lines")
+        index_annotation_lines <- unique_index_annotation_lines
+    }
+    inrange_index_annotation_lines <- index_annotation_lines[index_annotation_lines >= 1 & index_annotation_lines <= length(sequences_vector)]
+    if (length(inrange_index_annotation_lines) != length(index_annotation_lines)) {
+        cli_alert_info(paste0("Automatically removing out-of-range values of index_annotation_lines.\nLength of input sequences vector: ", length(sequences_vector), "\nIndex lines before: ", paste(index_annotation_lines, collapse = ", "), "\nIndex lines after: ", paste(inrange_index_annotation_lines, collapse = ", ")), class = "sanitising_index_annotation_lines")
+        index_annotation_lines <- inrange_index_annotation_lines
+    }
+    ## ---------------------------------------------------------------------
+
+
+
+
+    ## Insert additional blank lines for index annotations (nothing changes if length(index_annotation_lines) == 0)
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "inserting blank sequences at specified indices")
+    new_sequences_vector <- insert_at_indices(sequences_vector, index_annotation_lines, insert_before = index_annotations_above, insert = "", vert = index_annotation_vertical_position)
+
     ## Generate data for plotting
-    image_data <- create_image_data(sequences_vector)
-    annotations <- convert_sequences_to_annotations(sequences_vector, line_length = max(nchar(sequences_vector)), interval = 0)
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "rasterising image data")
+    image_data <- create_image_data(new_sequences_vector)
 
     ## Name the sequence colours vector
     names(sequence_colours) <- as.character(1:4)
 
-    ## Calculate tile dimensions
-    tile_width  <- 1/max(nchar(sequences_vector))
-    tile_height <- 1/length(sequences_vector)
 
-    ## Generate actual plot
-    result <- ggplot(image_data, aes(x = .data$x, y = .data$y)) +
-        ## Background
-        geom_tile(data = filter(image_data, layer == 0), width = tile_width, height = tile_height, fill = background_colour) +
+    ## Determine whether to use geom_raster as a faster but more limited alternative to geom_tile
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "choosing rendering method")
+    raster <- FALSE
+    if (sequence_text_size == 0 && length(index_annotation_lines) == 0 && outline_linewidth == 0) {
+        cli_alert_info("Automatically using geom_raster (much faster than geom_tile) as no sequence text, index annotations, or outlines are present.")
+        raster <- TRUE
+    } else if (force_raster) {
+        warn("Forcing geom_raster via force_raster = TRUE will remove all sequence text, index annotations (though any inserted blank lines/spacers will remain), and box outlines.", class = "raster_is_forced")
+        raster <- TRUE
+    }
 
-        ## Base boxes
-        geom_tile(data = filter(image_data, layer != 0), width = tile_width, height = tile_height, aes(fill = as.character(.data$layer)),
-                  col = outline_colour, linewidth = outline_linewidth, linejoin = tolower(outline_join)) +
-        scale_fill_manual(values = sequence_colours) +
+    ## Make actual plot
+    ## Fast rasterisation if possible
+    if (raster) {
+        if (pixels_per_base > 20) {
+            warn(paste("When using geom_raster, it is recommended to use a smaller pixels_per_base e.g. 10, as there is no text/outlines that would benefit from higher resolution.\nCurrent value:", pixels_per_base), class = "parameter_recommendation")
+        }
 
-        ## General plot setup
-        guides(x = "none", y = "none", fill = "none") +
+        monitor_time <- monitor(monitor_performance, start_time, monitor_time, "creating basic plot via geom_raster")
+        result <- ggplot(image_data, aes(x = .data$x, y = .data$y, fill = as.character(.data$value))) +
+            geom_raster() +
+            scale_fill_manual(values = c("0" = background_colour, sequence_colours))
+
+
+    ## Otherwise slow geom_tile
+    } else {
+
+        ## Calculate tile dimensions
+        monitor_time <- monitor(monitor_performance, start_time, monitor_time, "calculating tile sizes")
+        tile_width  <- 1/max(nchar(new_sequences_vector))
+        tile_height <- 1/length(new_sequences_vector)
+
+        ## Generate actual plot
+        monitor_time <- monitor(monitor_performance, start_time, monitor_time, "creating basic plot via geom_tile")
+        result <- ggplot(image_data, aes(x = .data$x, y = .data$y)) +
+            ## Background
+            geom_tile(data = filter(image_data, .data$value == 0), width = tile_width, height = tile_height, fill = background_colour) +
+
+            ## Base boxes
+            geom_tile(data = filter(image_data, .data$value != 0), width = tile_width, height = tile_height, aes(fill = as.character(.data$value)),
+                      col = outline_colour, linewidth = outline_linewidth, linejoin = tolower(outline_join)) +
+            scale_fill_manual(values = sequence_colours)
+
+        ## Add sequence text if desired
+        if (sequence_text_size > 0) {
+            monitor_time <- monitor(monitor_performance, start_time, monitor_time, "generating sequence text")
+            sequence_text_data <- rasterise_matrix(convert_sequences_to_matrix(new_sequences_vector, line_length = max(nchar(new_sequences_vector))))
+
+            monitor_time <- monitor(monitor_performance, start_time, monitor_time, "adding sequence text")
+            result <- result +
+                geom_text(data = sequence_text_data, aes(x = .data$x, y = .data$y, label = .data$value), col = sequence_text_colour, size = sequence_text_size, fontface = "bold", inherit.aes = F)
+        }
+
+        ## Add index annotations if desired
+        if (length(index_annotation_lines) > 0) {
+            monitor_time <- monitor(monitor_performance, start_time, monitor_time, "generating index annotations")
+            index_annotation_data <- rasterise_index_annotations(new_sequences_vector = new_sequences_vector, original_sequences_vector = sequences_vector, index_annotation_lines = index_annotation_lines, index_annotation_interval = index_annotation_interval, index_annotation_full_line = index_annotation_full_line, index_annotations_above = index_annotations_above, index_annotation_vertical_position = index_annotation_vertical_position, index_annotation_always_first_base = index_annotation_always_first_base, index_annotation_always_last_base = index_annotation_always_last_base)
+
+            monitor_time <- monitor(monitor_performance, start_time, monitor_time, "adding index annotations")
+            result <- result +
+                geom_text(data = index_annotation_data, aes(x = .data$x, y = .data$y, label = .data$value), col = index_annotation_colour, size = index_annotation_size, fontface = "bold", inherit.aes = F)
+        }
+    }
+
+    ## Do general plot setup
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "adding general plot themes")
+    result <- result +
         coord_cartesian(expand = FALSE, clip = "off") +
+        guides(x = "none", y = "none", fill = "none", col = "none", size = "none") +
         theme_void() +
         theme(plot.background = element_rect(fill = background_colour, colour = NA),
-              axis.title = element_blank(), plot.margin = grid::unit(c(margin, margin, margin, margin), "inches"))
+              axis.title = element_blank())
 
-    ## Add sequence text if desired
-    if (sequence_text_size != 0) {
-        result <- result +
-            geom_text(data = annotations, aes(x = .data$x_position, y = .data$y_position, label = .data$annotation), col = sequence_text_colour, size = sequence_text_size, fontface = "bold", inherit.aes = F) +
-            guides(col = "none", size = "none")
+    ## Correctly set margin, taking into consideration extra blank lines for annotations
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "calculating margin")
+    extra_spaces <- ceiling(index_annotation_vertical_position)
+    if (1 %in% index_annotation_lines && index_annotations_above) {
+        result <- result + theme(plot.margin = grid::unit(c(max(margin-extra_spaces, 0), margin, margin, margin), "inches"))
+        extra_height <- margin + max(margin-extra_spaces, 0)
+    } else if (length(sequences_vector) %in% index_annotation_lines && !index_annotations_above) {
+        result <- result + theme(plot.margin = grid::unit(c(margin, margin, max(margin-extra_spaces, 0), margin), "inches"))
+        extra_height <- margin + max(margin-extra_spaces, 0)
+    } else {
+        result <- result + theme(plot.margin = grid::unit(c(margin, margin, margin, margin), "inches"))
+        extra_height <- 2 * margin
     }
+
 
     ## Check if filename is set and warn if not png, then export image
     if (is.na(filename) == FALSE) {
+        monitor_time <- monitor(monitor_performance, start_time, monitor_time, "exporting image file")
         if (is.character(filename) == FALSE) {
-            abort("Filename must be a character/string (or NA if no file export wanted)", class = "argument_value_or_type")
+            bad_arg("filename", list(filename = filename), "must be a character/string (or NA if no file export wanted)")
         }
         if (tolower(substr(filename, nchar(filename)-3, nchar(filename))) != ".png") {
             warn("Not recommended to use non-png filetype (but may still work).", class = "filetype_recommendation")
         }
-        ggsave(filename, plot = result, dpi = pixels_per_base, device = render_device, width = max(nchar(sequences_vector))+(2*margin), height = length(sequences_vector)+(2*margin), limitsize = FALSE)
+        ggsave(filename, plot = result, dpi = pixels_per_base, device = render_device, width = max(nchar(new_sequences_vector))+(2*margin), height = length(new_sequences_vector)+extra_height, limitsize = FALSE)
     }
 
     ## Return either the plot object or NULL
+    monitor_time <- monitor(monitor_performance, start_time, monitor_time, "done")
     if (return == TRUE) {
         return(result)
     }
@@ -165,14 +335,22 @@ visualise_many_sequences <- function(sequences_vector, sequence_colours = sequen
 
 #' Extract, sort, and add spacers between sequences in a dataframe
 #'
+#' @aliases extract_sequences_from_dataframe
+#'
+#' @description
+#' `extract_sequences_from_dataframe()` is an alias for `extract_and_sort_sequences()` - see [aliases].
+#'
 #' This function takes a dataframe that contains sequences and metadata,
 #' recursively splits it into multiple levels of groups defined by `grouping_levels`,
 #' and adds breaks between each level of group as defined by `grouping_levels`.
 #' Within each lowest-level group, reads are sorted by `sort_by`, with order determined
-#' by `desc_sort`. \cr\cr Default values are set up to work with the included dataset
-#' [`example_many_sequences`]. \cr\cr The returned sequences vector is ideal input for
-#' [visualise_many_sequences()].\cr\cr Also called by [extract_methylation_from_dataframe()]
-#' to produce input for [visualise_methylation()].
+#' by `desc_sort`.
+#'
+#' Default values are set up to work with the included dataset [`example_many_sequences`].
+#'
+#' The returned sequences vector is ideal input for [visualise_many_sequences()].
+#'
+#' Also called by [extract_methylation_from_dataframe()] to produce input for [visualise_methylation()].
 #'
 #' @param sequence_dataframe `dataframe`. A dataframe containing the sequence information and all required meta-data. See [`example_many_sequences`] for an example of a compatible dataframe.
 #' @param sequence_variable `character`. The name of the column within the dataframe containing the sequence information to be output. Defaults to `"sequence"`.
@@ -230,45 +408,65 @@ visualise_many_sequences <- function(sequences_vector, sequence_colours = sequen
 #' )
 #'
 #' @export
-extract_and_sort_sequences <- function(sequence_dataframe, sequence_variable = "sequence",
-                                       grouping_levels = c("family" = 8, "individual" = 2),
-                                       sort_by = "sequence_length", desc_sort = TRUE) {
+extract_and_sort_sequences <- function(
+    sequence_dataframe,
+    sequence_variable = "sequence",
+    grouping_levels = c("family" = 8, "individual" = 2),
+    sort_by = "sequence_length",
+    desc_sort = TRUE
+) {
     ## Validate arguments
-    for (argument in list(sequence_dataframe, sequence_variable, grouping_levels, sort_by, desc_sort)) {
-        if (mean(is.null(argument)) != 0) {abort(paste("Argument", argument, "must not be null."), class = "argument_value_or_type")}
+    ## ---------------------------------------------------------------------
+    not_null <- list(sequence_dataframe = sequence_dataframe, sequence_variable = sequence_variable, grouping_levels = grouping_levels, sort_by = sort_by, desc_sort = desc_sort)
+    for (argument in names(not_null)) {
+        if (any(is.null(not_null[[argument]]))) {bad_arg(argument, not_null, "must not be null.")}
     }
-    if (mean(is.na(grouping_levels)) == 0 && mean(is.null(names(grouping_levels))) != 0) {
-        abort("grouping_levels must be a named vector", class = "argument_value_or_type")
+    not_null <- NULL
+
+    length_1 <- list(sequence_variable = sequence_variable, sort_by = sort_by, desc_sort = desc_sort)
+    for (argument in names(length_1)) {
+        if (length(length_1[[argument]]) != 1) {bad_arg(argument, length_1, "must have length 1.")}
     }
-    for (argument in list(sequence_variable, sort_by, desc_sort)) {
-        if (length(argument) != 1) {abort(paste("Argument", argument, "must have length 1"), class = "argument_value_or_type")}
+    length_1 <- NULL
+
+    not_na <- list(sequence_variable = sequence_variable, desc_sort = desc_sort)
+    for (argument in names(not_na)) {
+        if (is.na(not_na[[argument]])) {bad_arg(argument, not_na, "must not be NA.")}
     }
-    for (argument in list(sequence_variable, desc_sort)) {
-        if (mean(is.na(argument)) != 0) {abort(paste("Argument", argument, "must not be NA"), class = "argument_value_or_type")}
-    }
-    if (mean(is.na(grouping_levels) == 0)) {
+    not_na <- NULL
+
+
+    if (!any(is.na(grouping_levels))) {
+        if (any(is.null(names(grouping_levels))) || any(names(grouping_levels) == "")) {
+            bad_arg("grouping_levels", list(grouping_levels = grouping_levels), "must be a named vector (all elements named).", force_names = TRUE)
+        }
+
         for (level in names(grouping_levels)) {
             if (level %in% colnames(sequence_dataframe) == FALSE  || is.character(level) == FALSE) {
-                abort(paste0("grouping_levels must be a named numeric vector where all the names are columns in the input dataframe.\nCurrently '", level, "' is given as a grouping level name but is not a column in sequence_dataframe."), class = "argument_value_or_type")
+                abort(paste0("Argument 'grouping_levels' must be a named numeric vector where all the names are columns in the input dataframe.\nCurrently '", level, "' is given as a grouping level name but is not a column in sequence_dataframe."), class = "argument_value_or_type")
             }
         }
         if (is.numeric(grouping_levels) == FALSE) {
-            abort("grouping_levels must be a named numeric vector. Currently the values are not numeric", class = "argument_value_or_type")
+            bad_arg("grouping_levels", list(grouping_levels = grouping_levels), "must be a named numeric vector. Currently it is not numeric.")
+        }
+    } else if (length(grouping_levels) > 1) {
+        bad_arg("grouping_levels", list(grouping_levels = grouping_levels), "must be a single NA, or a named numeric vector with no NAs.\n  It cannot be a multi-element vector with some NA values.")
+    }
+
+    na_or_char_column <- list(sequence_variable = sequence_variable, sort_by = sort_by)
+    for (argument in names(na_or_char_column)) {
+        if (!is.na(na_or_char_column[[argument]]) && (!is.character(na_or_char_column[[argument]]) || !(na_or_char_column[[argument]] %in% colnames(sequence_dataframe)))) {
+            bad_arg(argument, na_or_char_column, "must be a single character value and the name of a column within sequence_dataframe.")
         }
     }
-    if (mean(is.na(grouping_levels)) != 0 && length(grouping_levels) > 1) {
-        abort("if setting grouping_levels to NA, must provide a single NA rather than a vector of multiple values including NA.")
+    na_or_char_column <- FALSE
+
+    bools <- list(desc_sort = desc_sort)
+    for (argument in names(bools)) {
+        if (!is.logical(bools[[argument]])) {bad_arg(argument, bools, "must be a logical/boolean value.")}
     }
-    for (argument in list(sequence_variable, sort_by)) {
-        if (is.na(argument) == FALSE && (argument %in% colnames(sequence_dataframe) == FALSE || is.character(argument) == FALSE)) {
-            abort(paste("Argument", argument, "must be a single character value and the name of a column within sequence_dataframe."), class = "argument_value_or_type")
-        }
-    }
-    for (argument in list(desc_sort)) {
-        if (is.logical(argument) == FALSE) {
-            abort("desc_sort must be a logical/boolean value.", class = "argument_value_or_type")
-        }
-    }
+    bools <- FALSE
+    ## ---------------------------------------------------------------------
 
 
 
@@ -277,7 +475,7 @@ extract_and_sort_sequences <- function(sequence_dataframe, sequence_variable = "
     sequence_variable  <- sym(sequence_variable)
 
     ## If grouping is off entirely, return sequences raw/sorted without breaks
-    if (mean(is.na(grouping_levels)) != 0) {
+    if (any(is.na(grouping_levels))) {
         if (!is.na(sort_by)) {
             sort_by <- sym(sort_by)
             if (desc_sort) {
@@ -319,16 +517,19 @@ extract_and_sort_sequences <- function(sequence_dataframe, sequence_variable = "
 
         group_vals <- unique(pull(df, !!current_group))
         for (i in seq_along(group_vals)) {
+            ## Create subset dataframe of only a particular level of the current grouping variable
             group_val <- group_vals[[i]]
             df_sub <- df %>% filter(!!current_group == group_val)
 
+            ## Add sequences for this group to the vector
+            ## If this isn't the lowest level, recursively put gaps in at the lower levels first
             if (level < length(group_syms)) {
                 sequences <- c(sequences, extract_sequences(df_sub, level + 1))
             } else {
                 sequences <- c(sequences, pull(df_sub, !!sequence_variable))
             }
 
-            # Add gap only if this is not the last subgroup
+            ## Add gap afterwards only if this is not the last subgroup
             if (i < length(group_vals)) {
                 sequences <- c(sequences, rep("", current_gap))
             }
@@ -341,3 +542,144 @@ extract_and_sort_sequences <- function(sequence_dataframe, sequence_variable = "
     sequences <- extract_sequences(sequence_dataframe_sorted)
     return(sequences)
 }
+
+
+
+
+#' Insert blank items at specified indices in a vector ([visualise_many_sequences()] helper)
+#'
+#' This function takes a vector (e.g. the output of [extract_and_sort_sequences()]) and
+#' inserts a specified "blank" value at the specified indices.
+#' If `insert_before` is `TRUE` then the blank value will be inserted before each
+#' specified index, whereas if `insert_before` is `FALSE` then the blank value
+#' will be inserted after each specified index.
+#'
+#' @param original_vector `vector`. The vector to insert blanks into at specified locations (e.g. vector of sequences from extract_and_sort_sequences, but doesn't have to be).
+#' @param insertion_indices `integer vector`. The indices (1-indexed) at which blanks should be inserted. If length 0, no blanks will be inserted.
+#' @param insert_before `logical`. Whether blanks should be inserted before (`TRUE`, default) or after (`FALSE`) each specified index. Values must be sorted and unique.
+#' @param insert `value`. The value that should be inserted before/after each specified index. Defaults to `""`. If length 0, nothing will be inserted. If length > 1, multiple items will be inserted at each specified index.
+#' @param vert `numerical`. The vertical distance into the box that index annotations will be drawn. If set to `NA` (default) does nothing so that this function is more generalisable. If set to a number, then the `insert` will be repeated `ceiling(vert)` times each time it is inserted.
+#'
+#' @return `vector`. The original vector but with the `insert` value added before/after each specified index.
+#'
+#' @examples
+#' insert_at_indices(c("A", "B", "C", "D", "E"), c(2, 4))
+#'
+#' insert_at_indices(
+#'     c("A", "B", "C", "D", "E"),
+#'     c(2, 4),
+#'     insert_before = TRUE,
+#'     insert = 0
+#' )
+#'
+#' insert_at_indices(
+#'     c("A", "B", "C", "D", "E"),
+#'     c(2, 4),
+#'     insert_before = FALSE,
+#'     insert = 0
+#' )
+#'
+#' insert_at_indices(
+#'     original_vector = c("A", "B", "C", "D", "E"),
+#'     insertion_indices = c(1, 4, 6),
+#'     insert_before = TRUE,
+#'     insert = c("X", "Y")
+#' )
+#'
+#' insert_at_indices(
+#'     list("A", "B", "C", "D", "E"),
+#'     c(2, 4),
+#'     insert = TRUE
+#' )
+#'
+#' insert_at_indices(
+#'     list("A", "B", "C", "D", "E"),
+#'     c(2, 4),
+#'     insert_before = FALSE,
+#'     insert = list(TRUE, 7)
+#' )
+#'
+#' insert_at_indices(
+#'     NA,
+#'     c(1, 2),
+#'     FALSE
+#' )
+#'
+#' insert_at_indices(
+#'     c("A", "B", "C", "D", "E"),
+#'     integer(0)
+#' )
+#'
+#' @export
+insert_at_indices <- function(
+    original_vector,
+    insertion_indices,
+    insert_before = TRUE,
+    insert = "",
+    vert = NA
+) {
+    ## Validate arguments
+    ## ---------------------------------------------------------------------
+    if (is.vector(original_vector) == FALSE) {
+        bad_arg("original_vector", list(original_vector = original_vector), "must be a vector.")
+    }
+    if (is.vector(insert) == FALSE) {
+        bad_arg("insert", list(insert = insert), "must be a vector-coercable value.")
+    }
+    if (any(is.na(insert_before)) || any(is.null(insert_before)) || length(insert_before) != 1 || is.logical(insert_before) == FALSE) {
+        bad_arg("insert_before", list(insert_before = insert_before), "must be a single logical/boolean value.")
+    }
+    if (any(is.na(insertion_indices)) || any(is.null(insertion_indices)) || !(is.numeric(insertion_indices)) || any(insertion_indices %% 1 != 0) || any(insertion_indices < 1)) {
+        bad_arg("insertion_indices", list(insertion_indices = insertion_indices), "must be a vector of positive integers with no missing values.")
+    }
+    if (length(insertion_indices) > 0 && max(insertion_indices) > length(original_vector)) {
+        warn(paste0("One or more indices are beyond the length of the vector and will be ignored.\nLength: ", length(original_vector), "\nIndices: ", paste(insertion_indices, collapse = ", ")), class = "length_exceeded")
+    }
+    if (length(vert) != 1 || is.null(vert) || (is.na(vert) == FALSE && (is.numeric(vert) == FALSE))) {
+        bad_arg("vert", list(vert = vert), "must be NA or numeric. Recommended to leave it NA for most purposes.")
+    }
+    ## Check sorting and uniqueness
+    if (any(sort(insertion_indices, na.last = TRUE) != insertion_indices)) {
+        bad_arg("insertion_indices", list(insertion_indices = insertion_indices), "must be sorted.")
+    }
+    if (length(unique(insertion_indices)) != length(insertion_indices)) {
+        bad_arg("insertion_indices", list(insertion_indices = insertion_indices), "must be unique.")
+    }
+    ## ---------------------------------------------------------------------
+
+
+
+
+    ## Insert additional blanks if vert is specified
+    if (is.na(vert) == FALSE) {
+        insert <- rep(insert, ceiling(vert))
+    }
+
+    ## Insert blanks
+    new_vector <- NULL
+    for (i in seq_along(original_vector)) {
+        if (i %in% insertion_indices) {
+            if (insert_before == TRUE) {
+                new_vector <- c(new_vector, insert, original_vector[i])
+            } else {
+                new_vector <- c(new_vector, original_vector[i], insert)
+            }
+        } else {
+            new_vector <- c(new_vector, original_vector[i])
+        }
+    }
+
+    return(new_vector)
+}
+
+
+## Define alias
+#' @rdname visualise_many_sequences
+#' @usage NULL
+#' @export
+visualize_many_sequences <- visualise_many_sequences
+
+#' @rdname extract_and_sort_sequences
+#' @usage NULL
+#' @export
+extract_sequences_from_dataframe <- extract_and_sort_sequences

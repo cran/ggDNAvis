@@ -3,17 +3,20 @@
 \docType{data}
 \name{sequence_colour_palettes}
 \alias{sequence_colour_palettes}
+\alias{sequence_color_palettes}
+\alias{sequence_col_palettes}
 \title{Colour palettes for sequence visualisations}
 \format{
 \subsection{\code{sequence_colour_palettes}}{
 
-A list of 5 length-4 character vectors
+A list of 6 length-4 character vectors
 \describe{
 \item{ggplot_style}{The shades of red, green, blue, and purple that \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} uses by default for a 4-way discrete colour scheme.\cr\cr Values: \code{c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")}}
 \item{bright_pale}{Bright yellow, green, blue, and red in lighter pastel-like tones.\cr\cr Values: \code{c("#FFDD00", "#40C000", "#00A0FF", "#FF4E4E")}}
-\item{bright_pale2}{Bright yellow, green, blue, and red in lighter pastel-like tones. The green (for C) is slightly ligther than bright_pale.\cr\cr Values: \code{c("#FFDD00", "#30EC00", "#00A0FF", "#FF4E4E")}}
+\item{bright_pale2}{Bright yellow, green, blue, and red in lighter pastel-like tones. The green (for C) is slightly lighter than bright_pale.\cr\cr Values: \code{c("#FFDD00", "#30EC00", "#00A0FF", "#FF4E4E")}}
 \item{bright_deep}{Bright orange, green, blue, and red in darker, richer tones.\cr\cr Values: \code{c("#FFAA00", "#00BC00", "#0000DC", "#FF1E1E")}}
 \item{sanger}{Green, blue, black, and red similar to a traditional Sanger sequencing readout.\cr\cr Values: \code{c("#00B200", "#0000FF", "#000000", "#FF0000")}}
+\item{accessible}{Light green, dark green, dark blue, and light blue as suggested by \href{https://colorbrewer2.org/}{colorbrewer2.org} for a 4-qualitative-category colourblind-safe palette.\cr\cr Values: \code{c("#B2DF8A", "#33A02C", "#1F78B4", "#A6CEE3")}}
 }
 }
 }
@@ -21,10 +24,64 @@ A list of 5 length-4 character vectors
 sequence_colour_palettes
 }
 \description{
+\code{sequence_color_palettes} and \code{sequence_col_palettes}
+are aliases for \code{sequence_colour_palettes} - see \link{aliases}.
+
 A collection of colour palettes for use with \code{\link[=visualise_single_sequence]{visualise_single_sequence()}}
-and \code{\link[=visualise_many_sequences]{visualise_many_sequences()}}.\cr\cr Each is a character vector of 4 colours,
-corresponding to A, C, G, and T/U in that order.\cr\cr To use inside the visualisation
-functions, set \verb{sequence_colours = sequence_colour_palettes$<palette_name>}\cr\cr
+and \code{\link[=visualise_many_sequences]{visualise_many_sequences()}}. Each is a character vector of 4 colours,
+corresponding to A, C, G, and T/U in that order.
+
+To use inside the visualisation functions, set
+\verb{sequence_colours = sequence_colour_palettes$<palette_name>}
+
 Generation code is available at \code{data-raw/sequence_colour_palettes.R}
+}
+\examples{
+## ggplot_style:
+visualise_single_sequence(
+    "ACGT",
+    sequence_colours = sequence_colour_palettes$ggplot_style,
+    index_annotation_interval = 0
+)
+
+## bright_pale:
+visualise_single_sequence(
+    "ACGT",
+    sequence_colours = sequence_colour_palettes$bright_pale,
+    index_annotation_interval = 0
+)
+
+## bright_pale2:
+visualise_single_sequence(
+    "ACGT",
+    sequence_colours = sequence_colour_palettes$bright_pale2,
+    index_annotation_interval = 0
+)
+
+## bright_deep:
+visualise_single_sequence(
+    "ACGT",
+    sequence_colours = sequence_colour_palettes$bright_deep,
+    sequence_text_colour = "white",
+    index_annotation_interval = 0
+)
+
+## sanger:
+visualise_single_sequence(
+    "ACGT",
+    sequence_colours = sequence_colour_palettes$sanger,
+    sequence_text_colour = "white",
+    index_annotation_interval = 0
+)
+
+## accessible:
+visualise_single_sequence(
+    "ACGT",
+    sequence_colours = sequence_colour_palettes$accessible,
+    sequence_text_colour = "black",
+    index_annotation_interval = 0
+)
+
+
 }
 \keyword{datasets}

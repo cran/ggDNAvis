@@ -4,10 +4,12 @@
 \alias{read_modified_fastq}
 \title{Read modification information from modified FASTQ}
 \usage{
-read_modified_fastq(filename = file.choose(), debug = FALSE)
+read_modified_fastq(filename = file.choose(), strip_at = TRUE, debug = FALSE)
 }
 \arguments{
 \item{filename}{\code{character}. The file to be read. Defaults to \code{\link[=file.choose]{file.choose()}} to select a file interactively.}
+
+\item{strip_at}{\code{logical}. Boolean value for whether "\code{@}" characters at the start of read IDs should automatically be stripped if they are present, via \code{\link[=strip_leading_at]{strip_leading_at()}}.\cr\cr These "\code{@}"s tend to be introduced by writing BAM to FASTQ via \verb{samtools fastq} and can cause read IDs to not match between FASTQ data and metadata, causing metadata merging to fail.}
 
 \item{debug}{\code{logical}. Boolean value for whether the extra \verb{<MM/ML>_tags} and \verb{<MM/ML>_raw} columns should be added to the dataframe. Defaults to \code{FALSE} as I can't imagine this is often helpful, but the option is provided to assist with debugging.}
 }
@@ -25,8 +27,8 @@ a column of comma-separated modification probabilities (\verb{<type>_probabiliti
 Modification locations are the indices along the read at which modification was assessed
 e.g. a 3 indicates that the third base in the read was assessed for modifications of the given type.
 Modification probabilities are the probability that the given modification is present, given as
-an integer from 0-255 where integer \eqn{N} represents the probability space from \eqn{\frac{N}{256}}
-to \eqn{\frac{N+1}{256}}.\cr\cr
+an integer from 0-255 where integer \eqn{p} represents the probability space from \eqn{\frac{p}{256}}
+to \eqn{\frac{p+1}{256}}.\cr\cr
 To extract the numbers from these columns as numeric vectors to analyse, use \code{\link[=string_to_vector]{string_to_vector()}} e.g.
 \code{list_of_locations <- lapply(test_01$`C+h?_locations`, string_to_vector)}. Be aware that the SAM
 modification types often contain special characters, meaning the colname may need to be enclosed in

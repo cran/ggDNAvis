@@ -1,7 +1,7 @@
 Package: ggDNAvis
 Title: 'ggplot2'-Based Tools for Visualising DNA Sequences and
         Modifications
-Version: 0.3.2
+Version: 1.0.0
 Authors@R: 
     person(
         "Evelyn", "Jade", 
@@ -9,23 +9,27 @@ Authors@R:
         role = c("aut", "cre", "cph"),
         comment = c(ORCID = "0009-0003-7761-5425")
     )
-Description: Uses 'ggplot2' to visualise either (a) a single DNA/RNA sequence split across multiple lines, (b) multiple DNA/RNA sequences, each occupying a whole line, or (c) base modifications such as DNA methylation called by modified bases models in Dorado or Guppy. Functions starting with visualise_<something>() are the main plotting functions, and functions starting with extract_<something>() are key helper functions for reading files and reformatting data. Source code is available at <https://github.com/ejade42/ggDNAvis> and a full non-expert user guide is available at <https://ejade42.github.io/ggDNAvis/>.
-Imports: ggplot2, dplyr, tidyr, stringr, rlang, ragg, png, magick
+Description: Uses 'ggplot2' to visualise either (a) a single DNA/RNA sequence split across multiple lines, (b) multiple DNA/RNA sequences, each occupying a whole line, or (c) base modifications such as DNA methylation called by modified bases models in Dorado or Guppy. Functions starting with visualise_<>() are the main plotting functions, and functions starting with extract_and_sort_<>() are key helper functions for reading files and reformatting data. Source code is available at <https://github.com/ejade42/ggDNAvis>, a full non-expert user guide is available at <https://ejade42.github.io/ggDNAvis/>, and an interactive web-app version of the software is available at <https://ejade42.github.io/ggDNAvis/articles/interactive_app.html>.
+Imports: cli, dplyr, ggnewscale, ggplot2 (>= 4.0.0), grid, magick, png,
+        ragg, rlang, stats, stringr, tidyr, utils
 License: MIT + file LICENSE
 Encoding: UTF-8
 RoxygenNote: 7.3.3
-Suggests: testthat (>= 3.0.0)
+Suggests: bslib, colourpicker, jsonlite, knitr, markdown, rmarkdown,
+        shiny, shinyjs, testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Depends: R (>= 3.5)
 LazyData: true
 Language: en-GB
 URL: https://ejade42.github.io/ggDNAvis/,
-        https://github.com/ejade42/ggDNAvis
+        https://github.com/ejade42/ggDNAvis,
+        https://doi.org/10.64898/2026.03.02.708895
 BugReports: https://github.com/ejade42/ggDNAvis/issues
+VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2025-10-31 04:12:15 UTC; evelyn
+Packaged: 2026-03-06 01:29:23 UTC; evelyn
 Author: Evelyn Jade [aut, cre, cph] (ORCID:
     <https://orcid.org/0009-0003-7761-5425>)
 Maintainer: Evelyn Jade <evelynjade42@gmail.com>
 Repository: CRAN
-Date/Publication: 2025-10-31 04:30:02 UTC
+Date/Publication: 2026-03-06 03:10:02 UTC
