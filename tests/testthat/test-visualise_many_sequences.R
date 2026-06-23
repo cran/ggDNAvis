@@ -3,6 +3,9 @@ root <- "test_plot_images/"
 reference <- "reference_images/"
 acceptable_distortion <- fetch_acceptable_distortion()
 
+## Require magick package to run these tests
+testthat::skip_if_not_installed("magick")
+library(magick)
 
 sequence_vector_1 <- c("GGCGGCGGCGGCGGAGGAGGCGGCGGAGGAGGCGGC",
                        "GGCGGCGGCGGCGGTGGUGGCGGCGGTGGTGGCGGC",

@@ -1,3 +1,9 @@
+# ggDNAvis 1.0.1
+
+* Removed magick as a dependency and added it to suggests (required only for tests)
+
+* Minor tweaks to methylation text manuscript figure
+
 # ggDNAvis 1.0.0
 
 This ***major*** release has enormous changes to pretty much every aspect of `ggDNAvis`. Expect code to break, but also for performance and features to be enhanced across the board.
