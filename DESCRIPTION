@@ -1,7 +1,7 @@
 Package: ggDNAvis
 Title: 'ggplot2'-Based Tools for Visualising DNA Sequences and
         Modifications
-Version: 1.0.1
+Version: 1.1.0
 Authors@R: 
     person(
         "Evelyn", "Jade", 
@@ -27,9 +27,9 @@ BugReports: https://github.com/ejade42/ggDNAvis/issues
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2026-06-23 03:35:10 UTC; ejad042
+Packaged: 2026-10-16 04:29:28 UTC; ejad042
 Author: Evelyn Jade [aut, cre, cph] (ORCID:
     <https://orcid.org/0009-0003-7761-5425>)
 Maintainer: Evelyn Jade <evelynjade42@gmail.com>
 Repository: CRAN
-Date/Publication: 2026-06-23 04:00:02 UTC
+Date/Publication: 2026-10-16 04:50:02 UTC
